@@ -15,9 +15,7 @@ Further, they system may be able to adjust the consistency model on the run or w
 
 - In the proposal, we said we will investigate the numerical I/O resource provisioning mechanism assuming applications are submitted with the I/O requirement, e.g., in throughput or IOPS.
 Now I feel that, neither do we nor the users, or even the code authors know clearly what the I/O requirements are. 
-
 Such a numerical I/O resource provisioning tool will be more meaningful to system administrators, who monitors the file system status from time to time. So they know clearly the risk of running the next application in the queue.
-
 Such integration can also be done with system schedulers, e.g., SLURM, so that SLURM knows the risk of putting another job into execution and can make decisions on the predicted outcome. This is assuming the application performance can be inferred from I/O performance.
 
 - To do this, we need to determine the mapping between I/O requests (with consistency constraints) to actual time consumption. We need to figure out the total available I/O cycles on a burst buffer system and assign the cycles to applications. We need a complex model to translate the diverse I/O workloads to a few numerical values.
