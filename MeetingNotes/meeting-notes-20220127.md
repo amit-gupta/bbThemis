@@ -1,11 +1,23 @@
-# Jan 27th, 2022
+# Mar 24th, 2022
 
 ### HPDC Submission
 
 - Done
-- Due today
 
-### SC'22 Submission
+### Persistent ThemisIO
+
+- Ishank's Advanced OS cource project
+
+### SC'22 Submission -- Delayed
+
+- Quantitative I/O resource sharing
+  - Max-min fairness with proportional reosurce allocation and cumulative time per request type
+  - Rule-based reference impl -- Done by Ishank
+  - GIFT reference impl -- Done by Yuhong
+
+- targeting another conference or journal
+
+### SC'22 Submission -- Delayed
 
 - lead by Ed
 - Configurable Consistency 
