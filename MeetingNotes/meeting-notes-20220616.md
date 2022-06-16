@@ -1,4 +1,4 @@
-# June 2nd, 2022
+# June 16th, 2022
 
 ### Cluster submission
 - July 4, 2022
@@ -7,7 +7,6 @@
 ### Configurable Consistency
 - lead by Ed
 - Configurable Consistency 
-- Due April 1st
 - insights: the I/O log analysis on consistency
   - visible after write
   - visible after job, Montage
@@ -24,6 +23,7 @@
 - Replace communication layer with MPI
   - Intel MPI does not work with multi-thread, the connection accepting thread blocks all other threads
   - A deadend with the current MPI implmentation, Reach out to DK (Zhao) and Tony (Dan, Bill)
+  - libfabric -- Ed
 
 ### Log structure file system on persistent memory
 - https://www.usenix.org/conference/osdi21/presentation/koo
