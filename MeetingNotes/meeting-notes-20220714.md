@@ -1,13 +1,9 @@
 # July 14th, 2022
 
-### ThemisIO Submission
-- July 4, 2022
-
-
 ### Configurable Consistency
 - lead by Ed
 - Configurable Consistency 
-- Add MILC, AMBER, VPIC, GROMACS, SNAP-LAMMPS
+- Add MILC, AMBER, VPIC, GROMACS, SNAP-LAMMPS, OpenFOAM
   - May use BenchPRO, https://github.com/TACC/benchpro
 - insights: the I/O log analysis on consistency
   - visible after write
