@@ -1,4 +1,4 @@
-# Sep 22nd, 2022
+# Oct 6th, 2022
 
 ### Configurable Consistency
 - lead by Ed
@@ -11,6 +11,7 @@
     - SNAP-LAMMPS dummy run done, Matthew runs for us
     - OpenFOAM, Zhao to check the correctness
     - Ian to check with Matthew
+  - we still need AMBER, GROMACS, MILC as of Oct 6th. Ian to reach to Albert to help on GROMACS.
 - insights: the I/O log analysis on consistency
   - visible after write
   - visible after close
@@ -25,6 +26,7 @@
 - Abstract Due September 29, 2022.
 - Paper Due October 6, 2022.
 - https://www.overleaf.com/7435642899jrnjwftfvmgb
+- Done
 
 
 ### Mercury to replace ibverbs
