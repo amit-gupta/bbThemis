@@ -1,0 +1,16 @@
+#!/bin/bash
+#SBATCH -J test-amber
+#SBATCH -A A-ccsc
+#SBATCH -o test.o%j
+#SBATCH -e test.e%j
+#SBATCH -N 2
+#SBATCH -n 8
+#SBATCH -p normal
+#SBATCH -t 01:00:00
+
+ml reset
+ml intel/17.0.4
+ml impi/17.0.3
+ml amber/16.0
+
+time ibrun strace_mpi pmemd.MPI -O -i mdin.CPU -o mdout.CPU -p prmtop -c inpcrd
