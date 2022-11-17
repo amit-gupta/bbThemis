@@ -531,7 +531,9 @@ public:
 };
 
 
-// map (pid,fd) to a file currently open on that processes
+// Map (pid,fd) to a file currently open on that processes.
+// If the File* is null, then it is a pipe or a stdin/out/err stream and IO
+// on it is ignored.
 using OpenFileMap = std::map< std::pair<int,int> , File*>;
 
 

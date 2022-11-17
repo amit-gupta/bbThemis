@@ -327,11 +327,14 @@ void createEntryForStandardStream
 /*
   strace2dxt file format
   
-  First line: "# strace io log"
+  First line: "# strace io log v<version_number>"
   Remaining lines are tab-delimited.
     <pid> open <fd> <file_name>
     <pid> open <fd> <file_name> 1   # for files opened with O_APPEND
     <pid> read|write <offset> <length> <ts> <fd>
+    <pid> close <fd>
+    <pid> dup|dup2 <fd1> <fd2>
+    <pid> pipe|pipe2 <fd1> <fd2>
 
   pid: process id
   fd: file descriptor (an integer)
@@ -400,11 +403,14 @@ int readStraceInput(istream &in, FileTableType &file_table,
       auto open_it = open_files.find({pid,fd});
       if (open_it != open_files.end()) {
         f = open_it->second;
-        assert(f);
+        // assert(f);
+        // ignore null files
+        if (!f) continue;
       } else {
 
         // is it a standard io stream?
         if (fd >= 0 && fd <= 2) {
+          /*
           const char *name =
             fd==0 ? "<STDIN>" : fd==1 ? "<STDOUT>" : "<STDERR>";
 
@@ -416,8 +422,10 @@ int readStraceInput(istream &in, FileTableType &file_table,
             f = file_table_entry->second.get();
           }
           open_files[{pid,fd}] = f;
+          */
+          open_files[{pid,fd}] = nullptr;          
         }
-
+        
         else {
           fprintf(stderr, "ERROR %s:%ld read of unknown file descriptor: "
                   "\"%s\"\n",
@@ -427,6 +435,84 @@ int readStraceInput(istream &in, FileTableType &file_table,
       }
       
       f->addEvent(event);
+    }
+
+    else if (fn_name == "close") {
+      if (fields.size() != 3) {
+        fprintf(stderr, "ERROR %s:%ld expected 3 fields: \"%s\"\n",
+                input_filename.c_str(), line_no, line.c_str());
+        continue;
+      }
+
+      int fd = std::stol(fields[2]);
+      
+      auto it = open_files.find({pid,fd});
+      if (it == open_files.end()) {
+        // warn if closing something other than a stdin/out/err stream
+        if (fd > 2) {
+          fprintf(stderr, "WARNING %s:%ld close unopened fd: \"%s\"\n",
+                  input_filename.c_str(), line_no, line.c_str());
+        }
+        continue;
+      }
+      open_files.erase(it);
+    }
+
+    else if (fn_name == "dup" || fn_name == "dup2") {
+      if (fields.size() != 4) {
+        fprintf(stderr, "ERROR %s:%ld expected 4 fields: \"%s\"\n",
+                input_filename.c_str(), line_no, line.c_str());
+        continue;
+      }
+
+      int old_fd = std::stol(fields[2]);
+      int new_fd = std::stol(fields[3]);
+      File *old_file = nullptr;
+
+      auto it = open_files.find({pid,old_fd});
+      if (it == open_files.end()) {
+        // warn about duplicating an unknown file descriptor other than stdin/out/err
+        if (old_fd > 2) {
+          fprintf(stderr, "WARNING %s:%ld dup of unknown file descriptor: %s\n",
+                  input_filename.c_str(), line_no, line.c_str());
+        }
+      } else {
+        old_file = open_files[{pid,old_fd}];
+      }
+
+      open_files[{pid,new_fd}] = old_file;
+
+      // DEBUG
+      if (old_file) {
+        printf("DUP: %d duplication %d->%d %s\n", pid, old_fd, new_fd, old_file->name.c_str());
+      }
+    }
+
+    // for pipes, set them to null so I/O to them is ignored (we only care about files)
+    else if (fn_name == "pipe" || fn_name == "pipe2") {
+      if (fields.size() != 4) {
+        fprintf(stderr, "ERROR %s:%ld expected 4 fields: \"%s\"\n",
+                input_filename.c_str(), line_no, line.c_str());
+        continue;
+      }
+
+      int fd1 = std::stol(fields[2]);
+      int fd2 = std::stol(fields[3]);
+
+      if (open_files.find({pid,fd1}) != open_files.end()) {
+        fprintf(stderr, "WARNING %s:%ld "
+                "pipe returned open file descriptor %d: %s\n",
+                input_filename.c_str(), line_no, fd1, line.c_str());
+      }
+
+      if (open_files.find({pid,fd2}) != open_files.end()) {
+        fprintf(stderr, "WARNING %s:%ld "
+                "pipe returned open file descriptor %d: %s\n",
+                input_filename.c_str(), line_no, fd2, line.c_str());
+      }
+
+      open_files[{pid,fd1}] = nullptr;
+      open_files[{pid,fd2}] = nullptr;
     }
 
     else {
@@ -532,8 +618,6 @@ void scanForConflicts(File *f, bool output_conflict_details) {
     return;
   }
 
-  cout << f->name << "\n";
-
   RangeMerge range_merge(f->rank_seq);
 
   bool conflicts_found = false;
@@ -552,7 +636,12 @@ void scanForConflicts(File *f, bool output_conflict_details) {
     }
 
     if (active.size() > 1 && !write_ranks.empty()) {
-      conflicts_found = true;
+
+      if (!conflicts_found) {
+        cout << "conflicts-found " << f->name << "\n";
+        conflicts_found = true;
+      }
+      
       cout << "  CONFLICT bytes " << range_merge.getRangeStart() << ".."
            << (range_merge.getRangeEnd()-1) << ":";
       if (!read_ranks.empty()) {
@@ -576,7 +665,7 @@ void scanForConflicts(File *f, bool output_conflict_details) {
   }
 
   if (!conflicts_found) {
-    cout << "  no conflicts\n";
+    cout << "no-conflicts " << f->name << "\n";
   }
   
 }
