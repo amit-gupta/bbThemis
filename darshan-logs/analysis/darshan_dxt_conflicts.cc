@@ -47,17 +47,6 @@
 
 */
 
-#include <cstdlib>
-#include <cstdio>
-#include <cassert>
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <vector>
-#include <unordered_map>
-#include <memory>
-#include <regex>
-
 #include "darshan_dxt_conflicts.hh"
 
 using namespace std;
@@ -65,23 +54,36 @@ using namespace std;
 
 int Event::block_size = 1;
 
+string DARSHAN_HEADER = "# darshan log";
+string STRACE_HEADER = "# strace io log";
+
 
 // map file_id (the hash of the file path) to File object.
 // Use the hash rather than the path, because the path is
 // often truncated in Darshan, leading to collisions that would probably
 // be avoided when using the 64-bit hash of the full path.
 // typedef unordered_map<std::string, unique_ptr<File>> FileTableType;
-typedef map<std::string, unique_ptr<File>> FileTableType;
+using FileTableType = map<std::string, unique_ptr<File>>;
 
+void printHelp();
+
+// save_all_events: keep a copy of all events
 int readDarshanDxtInput(istream &in, FileTableType &file_table,
-                        LineReader &line_reader);
+                        LineReader &line_reader, bool output_per_rank_summary,
+                        bool save_all_events, TargetFiles &target_files);
 bool parseEventLine(Event &e, const string &line);
-void writeData(const FileTableType &file_table);
-void scanForConflicts(File *f);
+int readStraceInput(istream &in, FileTableType &file_table,
+                    LineReader &line_reader, const string &input_filename,
+                    bool save_all_events, TargetFiles &target_files);
+void processEventSequences(FileTableType &file_table,
+                           bool output_per_rank_summary);
+void scanForConflicts(File *f, int verbose);
+void outputConflictDetails(File *f, int64_t offset, int64_t offset_end);
 void testEventSequence();
 
 
-int main(int argc, char **argv) {
+int main(int argc, const char **argv) {
+  Options opt;
   FileTableType file_table;
 
 #if TESTING
@@ -90,17 +92,49 @@ int main(int argc, char **argv) {
   return 0;
 #endif
 
-  if (argc == 1) {
-    cerr << "\n  darshan_dxt_conflicts <input_dxt_file> [...]\n\n";
-    exit(1);
-  }
+  if (!opt.parseArgs(argc, argv))
+    printHelp();
 
   LineReader line_reader(5000);
-  for (int argno=1; argno < argc; argno++) {
-    ifstream inf(argv[argno]);
-    readDarshanDxtInput(inf, file_table, line_reader);
+  bool stdin_seen = false;
+  for (string &filename : opt.input_files) {
+    istream *inf;
+    if (filename == "-") {
+      if (stdin_seen) continue;
+      inf = &cin;
+      stdin_seen = true;
+    } else {
+      inf = new ifstream(filename);
+      if (!inf->good()) {
+        cerr << "Failed to open \"" << filename << "\"\n";
+        delete inf;
+        continue;
+      }
+    }
+    
+    string header_line;
+    if (!line_reader.getline(*inf, header_line)) {
+      fprintf(stderr, "Empty file: %s\n", filename.c_str());
+      continue;
+    }
+
+    bool save_all_events = (opt.verbose >= 2);
+    if (!header_line.compare(0, DARSHAN_HEADER.length(), DARSHAN_HEADER)) {
+      readDarshanDxtInput(*inf, file_table, line_reader,
+                          opt.output_per_rank_summary, save_all_events, opt.target_files);
+    } else if (!header_line.compare(0, STRACE_HEADER.length(), STRACE_HEADER)) {
+      readStraceInput(*inf, file_table, line_reader, filename,
+                      save_all_events, opt.target_files);
+    } else {
+      fprintf(stderr, "Unrecognized file type %s, header=%s\n",
+              filename.c_str(), header_line.c_str());
+    }
+    
+    if (inf != &cin) delete inf;
   }
   line_reader.done();
+
+  processEventSequences(file_table, opt.output_per_rank_summary);
 
   // scan files in name order
   vector<File*> files_by_name;
@@ -111,21 +145,55 @@ int main(int argc, char **argv) {
        [](File *a, File *b) {return a->name < b->name;});
   
   for (File *f : files_by_name) {
-    scanForConflicts(f);
+    scanForConflicts(f, opt.verbose);
+  }
+
+  for (auto const &t : opt.target_files) {
+    if (t.second == 0) {
+      cerr << "Warning file not referenced in log: " << t.first << "\n";
+    }
   }
   
   return 0;
 }
 
 
+void printHelp() {
+  cerr << "\n"
+    "  darshan_dxt_conflicts [options] <dxt_file> ...\n"
+    "  Parse DxT output from darshan-parser and report any IO conflicts.\n"
+    "  An IO conflict is when one process writes a byte of a file, and\n"
+    "  another process reads or writes the same byte.\n"
+    "  If <dxt_file> is \"-\", it will be read from STDIN.\n"
+    "  Reported by ranges are inclusive.\n"
+    "\n"
+    "  options:\n"
+    "  -summary : Before scanning for conflicts, output a per-file summary\n"
+    "     of the ranges of bytes read or written by each process.\n"
+    "  -verbose=<n> : select level of detail. default = 1\n"
+    "    0: output just a list of files with conflicts\n"
+    "    1: output one line per file, including files with no conflicts\n"
+    "    2: for each conflicted file, output the conflicted byte ranges\n"
+    "    3: for each conflicted file, output the details of each IO access\n"
+    "  -file=<filename> : focus only on accesses of this file (or multiple files if\n"
+    "    multiple -file= options are specified). The full pathname, as it appears\n"
+    "    in the logfile, must be specified.\n"
+    "\n";
+  exit(1);
+}
+
+
 int readDarshanDxtInput(istream &in, FileTableType &file_table,
-                        LineReader &line_reader) {
+                        LineReader &line_reader, bool output_per_rank_summary,
+                        bool save_all_events, TargetFiles &target_files) {
   string line;
 
   regex section_header_re("^# DXT, file_id: ([0-9]+), file_name: (.*)$");
   regex rank_line_re("^# DXT, rank: ([0-9]+),");
   // regex io_event_re("^ *(X_MPIIO|X_POSIX) +[:digit:]+ +([:alpha:]+)");
   smatch re_matches;
+
+  // XXX target_files not supported yet
   
   while (true) {
 
@@ -148,7 +216,7 @@ int readDarshanDxtInput(istream &in, FileTableType &file_table,
     FileTableType::iterator ftt_iter = file_table.find(file_id_str);
     if (ftt_iter == file_table.end()) {
       // cout << "First instance of " << file_name << endl;
-      current_file = new File(file_id_str, file_name);
+      current_file = new File(file_id_str, file_name, save_all_events);
       file_table[file_id_str] = unique_ptr<File>(current_file);
     } else {
       current_file = ftt_iter->second.get();
@@ -197,34 +265,9 @@ int readDarshanDxtInput(istream &in, FileTableType &file_table,
   }
 
   // cout << "Reading done.\n";
-  
-  for (auto file_it = file_table.begin();
-       file_it != file_table.end(); file_it++) {
-    File *file = file_it->second.get();
-    // cout << "File " << file->name << endl;
-    for (auto rank_seq_it = file->rank_seq.begin();
-         rank_seq_it != file->rank_seq.end(); rank_seq_it++) {
-      // cout << "  rank " << rank_seq_it->first << endl;
-      EventSequence *seq = rank_seq_it->second.get();
-      // seq->print();
-      // cout << "    minimizing\n";
-      seq->minimize();
-      // seq->print();
-    }
-  }
-    
 
   return 0;
 }
-
-
-/*
-bool startsWith(const string &s, const char *search_str) {
-  size_t search_len = strlen(search_str);
-  return s.length() >= search_len
-    && 0 == s.compare(0, search_len, search_str);
-}
-*/
 
 
 /* 
@@ -284,24 +327,303 @@ bool parseEventLine(Event &event, const string &line) {
   return true;
 }
 
+/*
+void createEntryForStandardStream
+(const string &name, int fd,
+ FileTableType &file_table, unordered_map<int,File*> &open_files) {
+ 
+  File *f;
+  f = new File(name, name, false);
+  file_table[name] = unique_ptr<File>(f);
+  open_files[fd] = f;
+}
+*/
 
-void writeData(const FileTableType &file_table) {
+/*
+  strace2dxt file format
+  
+  First line: "# strace io log v<version_number>"
+  Remaining lines are tab-delimited.
+    <pid> open <fd> <file_name>
+    <pid> open <fd> <file_name> 1   # for files opened with O_APPEND
+    <pid> read|write <offset> <length> <ts> <fd>
+    <pid> close <fd>
+    <pid> dup|dup2 <fd1> <fd2>
+    <pid> pipe|pipe2 <fd1> <fd2>
 
-  for (auto &file_it : file_table) {
-    File *f = file_it.second.get();
-    cout << "File " << f->name << endl;
-    for (auto &event_it : f->events) {
-      cout << event_it.str() << endl;
+  pid: process id
+  fd: file descriptor (an integer)
+  time: timestamp in seconds
+*/
+int readStraceInput(istream &in, FileTableType &file_table,
+                    LineReader &line_reader, const string &input_filename,
+                    bool save_all_events, TargetFiles &target_files) {
+  string line;
+  OpenFileMap open_files;
+  vector<string> fields;
+  long line_no = 1;  // already read header line
+  Event event;
+  const string dev_null = "/dev/null";
+
+  while (line_reader.getline(in, line)) {
+    line_no++;
+    splitTabString(fields, line);
+
+    int pid = std::stoi(fields[0]);
+    const string &fn_name = fields[1];
+
+    if (fn_name == "open" or fn_name == "openat") {
+      if (fields.size() < 4
+          || fields.size() > 5
+          || (fields.size() == 5 && fields[4] != "1")) {
+        fprintf(stderr, "ERROR %s:%ld unexpected 'open' file format: \"%s\"\n",
+                input_filename.c_str(), line_no, line.c_str());
+        continue;
+      }
+      int fd = std::stoi(fields[2]);
+      const string &filename = fields[3];
+
+      File *f;
+      // should this file be ignored?
+      if (filename == dev_null || !referenceFile(target_files, filename)) {
+        f = nullptr;
+      } else {
+        // create a new entry in file_table if this is a new filename
+        FileTableType::iterator ftt_iter = file_table.find(filename);
+        if (ftt_iter == file_table.end()) {
+          // cout << "First instance of " << file_name << endl;
+          f = new File(filename, filename, save_all_events);
+          file_table[filename] = unique_ptr<File>(f);
+        } else {
+          f = ftt_iter->second.get();
+        }
+      }
+      
+      open_files[{pid,fd}] = f;
+    }
+
+    else if (fn_name == "read" || fn_name == "pread64" || fn_name == "write") {
+      if (fields.size() != 6) {
+        fprintf(stderr, "ERROR %s:%ld expected 6 fields: \"%s\"\n",
+                input_filename.c_str(), line_no, line.c_str());
+        continue;
+      }
+      long offset = std::stol(fields[2]);
+      long len = std::stol(fields[3]);
+      double timestamp = std::stod(fields[4]);
+      int fd = std::stoi(fields[5]);
+      Event::Mode mode = fn_name[0] == 'w' ? Event::WRITE : Event::READ;
+
+      // ignore 0-byte accesses
+      if (len <= 0) continue;
+      
+      Event event(pid, mode, Event::POSIX, offset, len, timestamp, timestamp);
+
+      // map fd to File
+      File *f = nullptr;
+      auto open_it = open_files.find({pid,fd});
+      if (open_it != open_files.end()) {
+        f = open_it->second;
+        // assert(f);
+        // ignore null files
+        if (!f) continue;
+      } else {
+
+        // is it a standard io stream?
+        if (fd >= 0 && fd <= 2) {
+          /*
+          const char *name =
+            fd==0 ? "<STDIN>" : fd==1 ? "<STDOUT>" : "<STDERR>";
+
+          auto file_table_entry = file_table.find(name);
+          if (file_table_entry == file_table.end()) {
+            f = new File(name, name, false);
+            file_table[name] = unique_ptr<File>(f);
+          } else {
+            f = file_table_entry->second.get();
+          }
+          open_files[{pid,fd}] = f;
+          */
+          open_files[{pid,fd}] = nullptr;          
+        }
+        
+        else {
+          fprintf(stderr, "ERROR %s:%ld read of unknown file descriptor: "
+                  "\"%s\"\n",
+                  input_filename.c_str(), line_no, line.c_str());
+          continue;
+        }
+      }
+      
+      if (f) f->addEvent(event);
+    }
+
+    else if (fn_name == "close") {
+      if (fields.size() != 3) {
+        fprintf(stderr, "ERROR %s:%ld expected 3 fields: \"%s\"\n",
+                input_filename.c_str(), line_no, line.c_str());
+        continue;
+      }
+
+      int fd = std::stol(fields[2]);
+      
+      auto it = open_files.find({pid,fd});
+      if (it == open_files.end()) {
+        // warn if closing something other than a stdin/out/err stream
+        /*
+        if (fd > 2) {
+          fprintf(stderr, "WARNING %s:%ld close unopened fd: \"%s\"\n",
+                  input_filename.c_str(), line_no, line.c_str());
+        }
+        */
+        continue;
+      }
+      open_files.erase(it);
+    }
+
+    else if (fn_name == "dup" || fn_name == "dup2") {
+      if (fields.size() != 4) {
+        fprintf(stderr, "ERROR %s:%ld expected 4 fields: \"%s\"\n",
+                input_filename.c_str(), line_no, line.c_str());
+        continue;
+      }
+
+      int old_fd = std::stol(fields[2]);
+      int new_fd = std::stol(fields[3]);
+      File *old_file = nullptr;
+
+      auto it = open_files.find({pid,old_fd});
+      if (it == open_files.end()) {
+        // warn about duplicating an unknown file descriptor other than stdin/out/err
+        /*
+        if (old_fd > 2) {
+          fprintf(stderr, "WARNING %s:%ld dup of unknown file descriptor: %s\n",
+                  input_filename.c_str(), line_no, line.c_str());
+        }
+        */
+      } else {
+        old_file = open_files[{pid,old_fd}];
+      }
+
+      open_files[{pid,new_fd}] = old_file;
+
+      // DEBUG
+      /*
+      if (old_file) {
+        printf("DUP: %d duplication %d->%d %s\n", pid, old_fd, new_fd, old_file->name.c_str());
+      }
+      */
+    }
+
+    // for pipes, set them to null so I/O to them is ignored (we only care about files)
+    else if (fn_name == "pipe" || fn_name == "pipe2") {
+      if (fields.size() != 4) {
+        fprintf(stderr, "ERROR %s:%ld expected 4 fields: \"%s\"\n",
+                input_filename.c_str(), line_no, line.c_str());
+        continue;
+      }
+
+      int fd1 = std::stol(fields[2]);
+      int fd2 = std::stol(fields[3]);
+
+      if (open_files.find({pid,fd1}) != open_files.end()) {
+        fprintf(stderr, "WARNING %s:%ld "
+                "pipe returned open file descriptor %d: %s\n",
+                input_filename.c_str(), line_no, fd1, line.c_str());
+      }
+
+      if (open_files.find({pid,fd2}) != open_files.end()) {
+        fprintf(stderr, "WARNING %s:%ld "
+                "pipe returned open file descriptor %d: %s\n",
+                input_filename.c_str(), line_no, fd2, line.c_str());
+      }
+
+      open_files[{pid,fd1}] = nullptr;
+      open_files[{pid,fd2}] = nullptr;
+    }
+
+    else {
+      fprintf(stderr, "ERROR %s:%ld unrecognized input: \"%s\"\n",
+              input_filename.c_str(), line_no, line.c_str());
     }
   }
-  /*
-  for (FileTableType::const_iterator it=file_table.begin();
-       it != file_table.end(); it++) {
-    const File *f = it->second.get();
-    cout << "File " << f->name << endl;
-  }
-  */
+  
+  return 0;
 }
+
+
+void processEventSequences(FileTableType &file_table,
+                           bool output_per_rank_summary) {
+  for (auto file_it = file_table.begin();
+       file_it != file_table.end(); file_it++) {
+    File *file = file_it->second.get();
+
+    if (output_per_rank_summary) {
+      cout << "File " << file->name << "\n";
+    }
+    
+    for (auto rank_seq_it = file->rank_seq.begin();
+         rank_seq_it != file->rank_seq.end(); rank_seq_it++) {
+      // cout << "  rank " << rank_seq_it->first << endl;
+      // EventSequence *seq = rank_seq_it->second.get();
+      EventSequence &seq = rank_seq_it->second;
+      // seq->print();
+      // cout << "    minimizing\n";
+      seq.minimize();
+      seq.sortAllEvents();
+
+      if (output_per_rank_summary &&
+          file->name != "<STDOUT>" &&
+          file->name != "<STDERR>") {
+        seq.print();
+      }
+        
+    }
+  }
+}  
+
+
+// split a line by tab characters
+void splitTabString(std::vector<std::string> &fields, const std::string &line) {
+  size_t pos = 0, field_no = 0;
+  while (true) {
+    size_t next_tab = line.find('\t', pos);
+    size_t len = (next_tab == string::npos)
+      ? line.length() - pos
+      : next_tab - pos;
+
+    // To avoid reallocations, replace the string rather than assign from
+    // a substring.
+    if (fields.size() < field_no+1)
+      fields.resize(field_no+1, "");
+    fields[field_no].replace(0, fields[field_no].length(), line, pos, len);
+
+    if (next_tab == string::npos) break;
+
+    pos = next_tab + 1;
+    field_no++;
+  }
+  fields.resize(field_no+1);
+}
+
+
+/* Call this when <filename> is accessed. This will return false if the file is to be ignored.
+   Also, has the side effect of marking each file when it has been accessed at least once so
+   we can warn a user about targeted files that were never accessed. */
+bool referenceFile(TargetFiles &target_files, const string &filename) {
+  if (target_files.empty()) {
+    return true;
+  } else {
+    auto it = target_files.find(filename);
+    if (it == target_files.end()) {
+      return false;
+    } else {
+      it->second = 1;
+      return true;
+    }
+  }
+}
+  
 
 
 string intSetToString(set<int> &s) {
@@ -335,14 +657,14 @@ string intSetToString(set<int> &s) {
        root is the next extent to end
      incoming min-heap, ordered by offset
        root is the next extent to start
+
+   verbose is a setting from 0 to 3, described in printHelp().
 */
-void scanForConflicts(File *f) {
+void scanForConflicts(File *f, int verbose) {
   if (f->name == "<STDERR>" || f->name == "<STDOUT>") {
     // cout << "  ignored\n";
     return;
   }
-
-  cout << f->name << "\n";
 
   RangeMerge range_merge(f->rank_seq);
 
@@ -350,46 +672,131 @@ void scanForConflicts(File *f) {
   while (range_merge.next()) {
     const RangeMerge::ActiveSet &active = range_merge.getActiveSet();
 
-    set<int> read_ranks, write_ranks;
+    set<int> read_ranks, write_ranks, rw_ranks;
     for (auto &it : active) {
       if (it.second==Event::WRITE) {
         write_ranks.insert(it.first);
-      } else {
+      } else if (it.second==Event::READ) {
         read_ranks.insert(it.first);
+      } else {
+        rw_ranks.insert(it.first);
       }
     }
 
     if (active.size() > 1 && !write_ranks.empty()) {
-      conflicts_found = true;
-      cout << "  CONFLICT bytes " << range_merge.getRangeStart() << ".."
-           << (range_merge.getRangeEnd()-1) << ":";
-      if (!read_ranks.empty()) {
-        cout << " readers=" << intSetToString(read_ranks);
+
+      // if this is the first conflict found, output a header line
+      if (!conflicts_found) {
+        if (verbose == 0) {
+          cout << f->name << "\n";
+        } else {
+          cout << "conflicts-found " << f->name << "\n";
+        }
+        conflicts_found = true;
       }
 
-      if (!write_ranks.empty()) {
-        cout << " writers=" << intSetToString(write_ranks);
+      if (verbose >= 2) {
+        cout << "  bytes " << range_merge.getRangeStart() << ".."
+             << (range_merge.getRangeEnd()-1) << ":";
+        if (!read_ranks.empty()) {
+          cout << " read ranks={" << intSetToString(read_ranks) << "}";
+        }
+
+        if (!write_ranks.empty()) {
+          cout << " write ranks={" << intSetToString(write_ranks) << "}";
+        }
+
+        if (!rw_ranks.empty()) {
+          cout << " read/write ranks={" << intSetToString(rw_ranks) << "}";
+        }
+        cout << "\n";
+
+        if (verbose >= 3) {
+          outputConflictDetails(f, range_merge.getRangeStart(),
+                                  range_merge.getRangeEnd());
+        }
       }
-      cout << "\n";
     }
   }
 
-  if (!conflicts_found) {
-    cout << "  no conflicts\n";
+  if (!conflicts_found && verbose >= 1) {
+    AccessMode access_mode = f->getAccessMode();
+    const char *mode_name = accessModeName(access_mode);
+    cout << "no-conflicts " << mode_name << " " << f->name << "\n";
   }
   
 }
 
 
+void outputConflictDetails(File *f, int64_t offset, int64_t offset_end) {
+  vector<Event> matches;
+  for (auto &v : f->rank_seq) {
+    // cout << "rank " << v.first << "\n";
+    EventSequence &es = v.second;
+    for (auto e = es.allBegin(); e != es.allEnd(); e++) {
+      if (e->offset < offset_end && e->endOffset() > offset) {
+        matches.push_back(*e);
+      }
+    }
+  }
+
+  sort(matches.begin(), matches.end(), events_order_by_start_time);
+
+  for (auto &e : matches) {
+    int64_t overlap_len = min(offset_end, e.endOffset())
+      - max(offset, e.offset);
+    cout << "  time " << fixed << setprecision(4) << e.start_time
+         << "-" << e.end_time
+         << " rank " << e.rank
+         << " " << (e.api == Event::POSIX ? "POSIX " : "MPI-IO")
+         << " " << (e.mode == Event::READ ? "read " : "write")
+         << " bytes "
+         << e.offset << ".." << (e.endOffset()-1)
+         << " (conflict overlap " << overlap_len << " bytes)\n";
+  }
+}
+    
+
+bool Options::parseArgs(int argc, const char **argv) {
+  if (argc <= 1) return false;
+
+  int argno = 1;
+  while (argno < argc) {
+    const char *arg = argv[argno];
+    if (!strcmp(arg, "-summary")) {
+      output_per_rank_summary = true;
+      argno++;
+    } else if (!strncmp(arg, "-file=", 6)) {
+      std::string filename = arg+6;
+      target_files[filename] = 0;
+      argno++;
+    } else if (!strncmp(arg, "-verbose=", 9)) {
+      if (1 != sscanf(arg+9, "%d", &verbose)
+          || verbose < 0 || verbose > 3)
+        printHelp();
+      argno++;
+    } else if (arg[0] == '-' && strlen(arg) > 1) {
+      return false;
+    } else {
+      break;
+    }
+  }
+
+  // add remaining args to input_files
+  input_files.insert(input_files.begin(), argv+argno, argv+argc);
+  
+  return true;
+}
+
 
 void EventSequence::addEvent(const Event &full_event) {
   // assert(validate());
 
-  // if (full_event.offset < 0) return;
-  
-  SeqEvent e(full_event);
+  if (save_all_events) {
+    all_events.push_back(full_event);
+  }
 
-  // std::cout << "Adding " << e.str() << std::endl;
+  SeqEvent e(full_event);
 
   EventList::iterator overlap_it = firstOverlapping(e);
   if (overlap_it == elist.end()) {
@@ -525,6 +932,10 @@ EventSequence::EventList::iterator EventSequence::firstOverlapping
     return elist.end();
   }
 
+  if (!evt.overlaps(next->second)) {
+    cerr << "overlap logic error:\n  " << evt.str() << "\n  "
+         << next->second.str() << "\n";
+  }
   assert(evt.overlaps(next->second));
   return next;
 }
@@ -565,12 +976,13 @@ bool EventSequence::validate() {
 
 
 void EventSequence::print() {
-  std::cout << "EventSequence " << getName() << std::endl;
+  // std::cout << "EventSequence " << getName() << std::endl;
+  std::cout << "  " << getName() << "\n";
   for (EventList::const_iterator it = begin(); it != end(); it++) {
     const SeqEvent &e = it->second;
     /* std::cout << "  " << e.offset << "-" << e.endOffset()
        << " " << e.str() << std::endl; */
-    std::cout << "  " << e.str() << std::endl;
+    std::cout << "    " << e.str() << std::endl;
   }
 }
 
@@ -645,7 +1057,7 @@ static void checkSequence2(const EventSequence &s,
 
 
 void testEventSequence() {
-  EventSequence s;
+  EventSequence s("", false);
   EventSequence::EventList::iterator it;
 
   // |rrrrrr|
@@ -829,7 +1241,7 @@ void testEventSequence() {
 RangeMerge::RangeMerge(File::RankSeqMap &rank_sequences) {
   // create vector of RankSeq objects
   for (auto &it : rank_sequences) {
-    ranks.emplace_back(it.first, it.second.get());
+    ranks.emplace_back(it.first, it.second);
   }
 
   // add all the RankSeq objects to a priority queue

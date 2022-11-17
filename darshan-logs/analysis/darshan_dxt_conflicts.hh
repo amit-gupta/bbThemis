@@ -1,26 +1,78 @@
 #ifndef DARSHAN_DXT_CONFLICTS_HH
 #define DARSHAN_DXT_CONFLICTS_HH
 
-#include <unistd.h>
-#include <iostream>
-#include <set>
+#include <algorithm>
+#include <cassert>
 #include <cinttypes>
 #include <cstdint>
-#include <string>
-#include <sstream>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
 #include <iomanip>
-#include <vector>
-#include <algorithm>
+#include <iostream>
+#include <memory>
 #include <queue>
-// #include <memory>
+#include <regex>
+#include <set>
+#include <sstream>
+#include <string>
+#include <unistd.h>
+#include <unordered_map>
+#include <vector>
 
-// class Event;
-// using EventPtr = std::shared_ptr<Event>;
+using TargetFiles = std::map<std::string, int>;
+
+// split a line by tab characters
+void splitTabString(std::vector<std::string> &fields, const std::string &line);
+
+// Check if a file is on the target list. Returns true if the list is empty (which targets
+// all files) or it is on the list. Also, if it is on the list, mark it as having been
+// accessed. 
+bool referenceFile(TargetFiles &target_files, const std::string &filename);
+
+
+enum AccessMode {ACCESS_MODE_NONE, ACCESS_MODE_RO, ACCESS_MODE_WO, ACCESS_MODE_RW};
+
+AccessMode combineAccessModes(AccessMode x, AccessMode y) {
+  return (AccessMode)((int)x | (int)y);
+}
+
+const char *accessModeName(int access_mode) {
+  const char *names[] = {"not-accessed", "read-only", "write-only", "read-write"};
+  if (access_mode < 0 || access_mode > 3) return "invalid-access-mode";
+  return names[access_mode];
+}
+
+
+struct Options {
+  // -summary option, list ranges accessed by each rank before scanning for conflicts
+  bool output_per_rank_summary;
+
+  // levels 0..3 described in printHelp()
+  int verbose;
+  
+  std::vector<std::string> input_files;
+
+  // If this is empty report on all files accessed.
+  // Otherwise only report on files in this set.
+  // Value is initially 0, and set to 1 if the file is ever accessed. This is used to
+  // report a warning if the user asked for a file that isn't accessed.
+  TargetFiles target_files;
+
+  Options() :
+    output_per_rank_summary(false),
+    verbose(1)
+  {}
+
+  // return false on error
+  bool parseArgs(int args, const char **argv);
+};
+
 
 class Event {
 public:
   int rank;
-  enum Mode {READ, WRITE} mode;
+  enum Mode {READ, WRITE, READ_WRITE} mode;
   enum API {POSIX, MPI} api;
   int64_t offset, length;
   double start_time, end_time;
@@ -42,11 +94,22 @@ public:
     buf << "rank " << rank
         << " bytes " << offset << ".." << (offset+length)
         << " " << (api==POSIX ? "POSIX" : "MPIIO")
-        << " " << (mode==READ ? "read" : "write")
+        << " " << mode2str(mode)
         << " time " << std::fixed << std::setprecision(4) << start_time << ".." << end_time;
     return buf.str();
   }
 
+
+  static std::string mode2str(Mode mode) {
+    switch (mode) {
+    case READ: return "read";
+    case WRITE: return "write";
+    case READ_WRITE: return "read/write";
+    default: return "unknown";
+    }
+  }
+
+  
   // return the offset after the last byte of this access
   int64_t endOffset() const {return offset + length;}
 
@@ -177,13 +240,21 @@ public:
 };
 
 
-// Order EventPtr objects by offset
+
 class EventsOrderByOffset {
 public:
   bool operator () (const Event &a, const Event &b) const {
     return a.offset < b.offset;
   }
 };
+
+
+class EventsOrderByStartTime {
+public:
+  bool operator () (const Event &a, const Event &b) const {
+    return a.start_time < b.start_time;
+  }
+} events_order_by_start_time;
 
 
 struct SeqEvent {
@@ -199,7 +270,7 @@ struct SeqEvent {
 
   std::string str() const {
     std::ostringstream buf;
-    buf << (mode==Event::Mode::READ ? "read" : "write")
+    buf << Event::mode2str(mode)
         << " " << offset << ".." << (offset+length);
     return buf.str();
   }    
@@ -223,10 +294,17 @@ struct SeqEvent {
       && endOffset() == e.offset;
   }
 
+  /*
+           r   w  rw
+        +-----------
+      r |  r  rw  rw
+      w | rw   w  rw
+     rw | rw  rw  rw
+   */
 
   void mergeMode(const SeqEvent &e) {
     if (e.mode != mode) {
-      mode = Event::Mode::WRITE;
+      mode = Event::Mode::READ_WRITE;
     }
   }
 
@@ -250,7 +328,8 @@ public:
   // map offset to Event
   using EventList = std::map<int64_t, SeqEvent>;
 
-  EventSequence(std::string name_ = "") : name(name_) {}
+  EventSequence(std::string name_="", bool save_all=false)
+    : name(name_), save_all_events(save_all) {}
 
   const std::string& getName() {return name;}
   
@@ -269,9 +348,43 @@ public:
   EventList::const_iterator begin() const {return elist.begin();}
   EventList::const_iterator end() const {return elist.end();}
 
+  // sort the all_events vector by start_time
+  void sortAllEvents() {
+    // std::cout << "sorting " << all_events.size() << " events\n";
+    std::sort(all_events.begin(),
+              all_events.end(),
+              events_order_by_start_time);
+  }
+  
+  std::vector<Event>::const_iterator allBegin() const
+    {return all_events.begin();}
+  std::vector<Event>::const_iterator allEnd() const
+    {return all_events.end();}
+
+  AccessMode getAccessMode() const {
+    AccessMode access_mode = ACCESS_MODE_NONE;
+    for (auto const &offset_event : elist) {
+      const SeqEvent &seq_event = offset_event.second;
+      AccessMode a = ACCESS_MODE_NONE;
+      if (seq_event.mode == Event::Mode::READ) {
+        a = ACCESS_MODE_RO;
+      } else if (seq_event.mode == Event::Mode::WRITE) {
+        a = ACCESS_MODE_WO;
+      } else if (seq_event.mode == Event::Mode::READ_WRITE) {
+        a = ACCESS_MODE_RW;
+      }
+      access_mode = combineAccessModes(access_mode, a);
+    }
+    return access_mode;
+  }
+
 private:
-  EventList elist;
   std::string name;
+  EventList elist;
+
+  // if save_all_events is true, save a copy of all events in all_events
+  bool save_all_events;
+  std::vector<Event> all_events;
 
   // Returns the first event in elist that overlaps e, or elist.end()
   // if no event overlaps e.
@@ -325,59 +438,71 @@ class File {
 public:
   const std::string id;  // a hash of the filename generated by Darshan
   const std::string name;
+  bool save_all_events;
 
-  
   // rank -> EventSequence
   // this stores one EventSequence for each rank that accessed the file
-  using RankSeqMap = std::map<int,EventSequencePtr>;
-  // using RankSeqIter = std::map<int,EventSequencePtr>::const_iterator;
+  using RankSeqMap = std::map<int,EventSequence>;
   
   RankSeqMap rank_seq;
 
-  EventSequence* getEventSequence(int rank) {
-    std::map<int,EventSequencePtr>::iterator it = rank_seq.find(rank);
+  File(const std::string &id_, const std::string &name_,
+       bool save_all_events_) : id(id_), name(name_),
+                                save_all_events(save_all_events_) {}
+
+  EventSequence& getEventSequence(int rank) {
+    auto it = rank_seq.find(rank);
     if (it == rank_seq.end()) {
-      std::string seq_name = std::string("rank=") + std::to_string(rank)
-        + " filename=" + name;
-      EventSequence *seq = new EventSequence(seq_name);
-      rank_seq[rank] = std::unique_ptr<EventSequence>(seq);
-      return seq;
+      /* std::string seq_name = std::string("rank=") + std::to_string(rank)
+         + " filename=" + name; */
+      std::string seq_name = std::string("rank ") + std::to_string(rank);
+      std::pair<RankSeqMap::iterator,bool> result
+        = rank_seq.emplace(std::piecewise_construct,
+                           std::make_tuple(rank),
+                           std::make_tuple(seq_name, save_all_events));
+      return result.first->second;
     } else {
-      return it->second.get();
+      return it->second;
     }
   }
 
   void addEvent(const Event &e) {
-    EventSequence *seq = getEventSequence(e.rank);
-    seq->addEvent(e);
+    EventSequence &seq = getEventSequence(e.rank);
+    seq.addEvent(e);
   }
 
-
-  // ordered by offset
-  typedef std::set<Event> EventSetType;
-  EventSetType events;
-
-  File(const std::string &id_, const std::string &name_) : id(id_), name(name_) {}
+  // check if this file is read, written, both, or not.
+  AccessMode getAccessMode() const {
+    AccessMode access_mode = ACCESS_MODE_NONE;
+    for (auto const &rank_eseq : rank_seq) {
+      const EventSequence &event_seq = rank_eseq.second;
+      access_mode = combineAccessModes(access_mode, event_seq.getAccessMode());
+    }
+    return access_mode;
+  }
 };
 
 
 class RankSeq {
   const int rank_;
-  const EventSequence *seq_;
-  EventSequence::EventList::const_iterator it_;
+  EventSequence::EventList::const_iterator it_, end_;
 
 public:
 
   // RankSeqIter
-  RankSeq(File::RankSeqMap::const_iterator it)
-    : rank_(it->first), seq_(it->second.get()), it_(seq_->begin()) {}
-
-  RankSeq(int rank, EventSequence *seq)
-    : rank_(rank), seq_(seq), it_(seq_->begin()) {}
+  RankSeq(File::RankSeqMap::const_iterator it) : rank_(it->first) {
+    const EventSequence &seq = it->second;
+    it_ = seq.begin();
+    end_ = seq.end();
+  }
+  
+  RankSeq(int rank, EventSequence &seq) : rank_(rank) {
+    it_ = seq.begin();
+    end_ = seq.end();
+  }
   
   int rank() const {return rank_;}
-  // EventSequence* sequence() const {return seq_;}
-  bool done() const {return it_ == seq_->end();}
+  bool done() const {return it_ == end_;}
   bool next() {
     if (done()) return false;
     it_++;
@@ -419,7 +544,7 @@ public:
 
 
 /* Merge a set of sequences of ranges into a sequence of subranges where the 
-   set of active ranks and their mode (read or write) is constant.
+   set of active ranks and their mode (read, write, or read/write) is constant.
    For example, with the following set of sequences:
      rank 0: read(10..20)
      rank 1: read(30..100)
@@ -464,87 +589,12 @@ public:
 };
 
 
-class OverlapSet {
-private:
-  std::vector<Event> events;
-
-public:
-  // remove elements whose end offset is less than end_offset
-  void removeOldEvents(int64_t end_offset) {
-    size_t i = 0;
-    while (i < events.size()) {
-      if (events[i].offset + events[i].length <= end_offset) {
-        events[i] = events[events.size()-1];
-        events.resize(events.size()-1);
-      } else {
-        i++;
-      }
-    }
-  }
-
-  // returns true if the new event was merged into an existing event
-  bool mergeEventsSameRank(const Event &new_event) {
-    for (Event &e : events) {
-      if (e.rank == new_event.rank) {
-        e.merge(new_event);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  std::string hazardType(const Event &first, const Event &second) {
-    if (first.mode == Event::READ) {
-      if (second.mode == Event::READ) {
-        return "RAR";
-      } else {
-        return "WAR";
-      }
-    } else {
-      if (second.mode == Event::READ) {
-        return "RAW";
-      } else {
-        return "WAW";
-      }
-    }
-  }
-
-  void reportOverlaps(const Event &e2) {
-    for (Event &e1 : events) {
-      if (e1.overlaps(e2) &&
-          (e1.mode == Event::WRITE || e2.mode == Event::WRITE)) {
-        const Event &first = (e1.start_time < e2.start_time) ? e1 : e2;
-        const Event &second = (e1.start_time >= e2.start_time) ? e1 : e2;
-
-        std::cout << hazardType(first, second) << " hazard.\n  "
-                  << first.str() << "\n  " << second.str() << std::endl;
-
-      }
-    }
-  }
-
-
-  void reportBlockOverlaps(const Event &e2) {
-    for (Event &e1 : events) {
-      if (!e1.overlaps(e2) &&
-          e1.overlapsBlocks(e2) &&
-          e1.mode == Event::WRITE &&
-          e2.mode == Event::WRITE) {
-        const Event &first = (e1.start_time < e2.start_time) ? e1 : e2;
-        const Event &second = (e1.start_time >= e2.start_time) ? e1 : e2;
-
-        std::cout << "WAW false sharing hazard.\n  "
-                  << first.str() << "\n  " << second.str() << std::endl;
-
-      }
-    }
-  }
-
-  void addEvent(const Event &e) {
-    events.push_back(e);
-  }
-
-};
+// Map (pid,fd) to a file currently open on that processes.
+// If the File* is null, then it is to be ignored because it is:
+//  - a pipe
+//  - stdin, stdout, or stderr
+//  - not on the Options::target_files list
+using OpenFileMap = std::map< std::pair<int,int> , File*>;
 
 
 #endif // DARSHAN_DXT_CONFLICTS_HH
