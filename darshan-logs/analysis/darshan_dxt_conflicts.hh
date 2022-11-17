@@ -20,18 +20,49 @@
 #include <unordered_map>
 #include <vector>
 
+using TargetFiles = std::map<std::string, int>;
 
 // split a line by tab characters
 void splitTabString(std::vector<std::string> &fields, const std::string &line);
 
+// Check if a file is on the target list. Returns true if the list is empty (which targets
+// all files) or it is on the list. Also, if it is on the list, mark it as having been
+// accessed. 
+bool referenceFile(TargetFiles &target_files, const std::string &filename);
+
+
+enum AccessMode {ACCESS_MODE_NONE, ACCESS_MODE_RO, ACCESS_MODE_WO, ACCESS_MODE_RW};
+
+AccessMode combineAccessModes(AccessMode x, AccessMode y) {
+  return (AccessMode)((int)x | (int)y);
+}
+
+const char *accessModeName(int access_mode) {
+  const char *names[] = {"not-accessed", "read-only", "write-only", "read-write"};
+  if (access_mode < 0 || access_mode > 3) return "invalid-access-mode";
+  return names[access_mode];
+}
+
 
 struct Options {
+  // -summary option, list ranges accessed by each rank before scanning for conflicts
   bool output_per_rank_summary;
-  bool output_conflict_details;
+
+  // levels 0..3 described in printHelp()
+  int verbose;
+  
   std::vector<std::string> input_files;
 
+  // If this is empty report on all files accessed.
+  // Otherwise only report on files in this set.
+  // Value is initially 0, and set to 1 if the file is ever accessed. This is used to
+  // report a warning if the user asked for a file that isn't accessed.
+  TargetFiles target_files;
+
   Options() :
-    output_per_rank_summary(false), output_conflict_details(false) {}
+    output_per_rank_summary(false),
+    verbose(1)
+  {}
 
   // return false on error
   bool parseArgs(int args, const char **argv);
@@ -330,6 +361,23 @@ public:
   std::vector<Event>::const_iterator allEnd() const
     {return all_events.end();}
 
+  AccessMode getAccessMode() const {
+    AccessMode access_mode = ACCESS_MODE_NONE;
+    for (auto const &offset_event : elist) {
+      const SeqEvent &seq_event = offset_event.second;
+      AccessMode a = ACCESS_MODE_NONE;
+      if (seq_event.mode == Event::Mode::READ) {
+        a = ACCESS_MODE_RO;
+      } else if (seq_event.mode == Event::Mode::WRITE) {
+        a = ACCESS_MODE_WO;
+      } else if (seq_event.mode == Event::Mode::READ_WRITE) {
+        a = ACCESS_MODE_RW;
+      }
+      access_mode = combineAccessModes(access_mode, a);
+    }
+    return access_mode;
+  }
+
 private:
   std::string name;
   EventList elist;
@@ -421,6 +469,16 @@ public:
   void addEvent(const Event &e) {
     EventSequence &seq = getEventSequence(e.rank);
     seq.addEvent(e);
+  }
+
+  // check if this file is read, written, both, or not.
+  AccessMode getAccessMode() const {
+    AccessMode access_mode = ACCESS_MODE_NONE;
+    for (auto const &rank_eseq : rank_seq) {
+      const EventSequence &event_seq = rank_eseq.second;
+      access_mode = combineAccessModes(access_mode, event_seq.getAccessMode());
+    }
+    return access_mode;
   }
 };
 
@@ -532,8 +590,10 @@ public:
 
 
 // Map (pid,fd) to a file currently open on that processes.
-// If the File* is null, then it is a pipe or a stdin/out/err stream and IO
-// on it is ignored.
+// If the File* is null, then it is to be ignored because it is:
+//  - a pipe
+//  - stdin, stdout, or stderr
+//  - not on the Options::target_files list
 using OpenFileMap = std::map< std::pair<int,int> , File*>;
 
 

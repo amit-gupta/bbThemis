@@ -70,14 +70,14 @@ void printHelp();
 // save_all_events: keep a copy of all events
 int readDarshanDxtInput(istream &in, FileTableType &file_table,
                         LineReader &line_reader, bool output_per_rank_summary,
-                        bool save_all_events);
+                        bool save_all_events, TargetFiles &target_files);
 bool parseEventLine(Event &e, const string &line);
 int readStraceInput(istream &in, FileTableType &file_table,
                     LineReader &line_reader, const string &input_filename,
-                    bool save_all_events);
+                    bool save_all_events, TargetFiles &target_files);
 void processEventSequences(FileTableType &file_table,
                            bool output_per_rank_summary);
-void scanForConflicts(File *f, bool output_conflict_details);
+void scanForConflicts(File *f, int verbose);
 void outputConflictDetails(File *f, int64_t offset, int64_t offset_end);
 void testEventSequence();
 
@@ -118,13 +118,13 @@ int main(int argc, const char **argv) {
       continue;
     }
 
+    bool save_all_events = (opt.verbose >= 2);
     if (!header_line.compare(0, DARSHAN_HEADER.length(), DARSHAN_HEADER)) {
       readDarshanDxtInput(*inf, file_table, line_reader,
-                          opt.output_per_rank_summary,
-                          opt.output_conflict_details);
+                          opt.output_per_rank_summary, save_all_events, opt.target_files);
     } else if (!header_line.compare(0, STRACE_HEADER.length(), STRACE_HEADER)) {
       readStraceInput(*inf, file_table, line_reader, filename,
-                      opt.output_conflict_details);
+                      save_all_events, opt.target_files);
     } else {
       fprintf(stderr, "Unrecognized file type %s, header=%s\n",
               filename.c_str(), header_line.c_str());
@@ -145,7 +145,13 @@ int main(int argc, const char **argv) {
        [](File *a, File *b) {return a->name < b->name;});
   
   for (File *f : files_by_name) {
-    scanForConflicts(f, opt.output_conflict_details);
+    scanForConflicts(f, opt.verbose);
+  }
+
+  for (auto const &t : opt.target_files) {
+    if (t.second == 0) {
+      cerr << "Warning file not referenced in log: " << t.first << "\n";
+    }
   }
   
   return 0;
@@ -159,12 +165,19 @@ void printHelp() {
     "  An IO conflict is when one process writes a byte of a file, and\n"
     "  another process reads or writes the same byte.\n"
     "  If <dxt_file> is \"-\", it will be read from STDIN.\n"
+    "  Reported by ranges are inclusive.\n"
     "\n"
     "  options:\n"
     "  -summary : Before scanning for conflicts, output a per-file summary\n"
     "     of the ranges of bytes read or written by each process.\n"
-    "  -audit : For each reported conflict, output the full details of each IO event\n"
-    "     leading to that conflict.\n"
+    "  -verbose=<n> : select level of detail. default = 1\n"
+    "    0: output just a list of files with conflicts\n"
+    "    1: output one line per file, including files with no conflicts\n"
+    "    2: for each conflicted file, output the conflicted byte ranges\n"
+    "    3: for each conflicted file, output the details of each IO access\n"
+    "  -file=<filename> : focus only on accesses of this file (or multiple files if\n"
+    "    multiple -file= options are specified). The full pathname, as it appears\n"
+    "    in the logfile, must be specified.\n"
     "\n";
   exit(1);
 }
@@ -172,13 +185,15 @@ void printHelp() {
 
 int readDarshanDxtInput(istream &in, FileTableType &file_table,
                         LineReader &line_reader, bool output_per_rank_summary,
-                        bool save_all_events) {
+                        bool save_all_events, TargetFiles &target_files) {
   string line;
 
   regex section_header_re("^# DXT, file_id: ([0-9]+), file_name: (.*)$");
   regex rank_line_re("^# DXT, rank: ([0-9]+),");
   // regex io_event_re("^ *(X_MPIIO|X_POSIX) +[:digit:]+ +([:alpha:]+)");
   smatch re_matches;
+
+  // XXX target_files not supported yet
   
   while (true) {
 
@@ -342,12 +357,13 @@ void createEntryForStandardStream
 */
 int readStraceInput(istream &in, FileTableType &file_table,
                     LineReader &line_reader, const string &input_filename,
-                    bool save_all_events) {
+                    bool save_all_events, TargetFiles &target_files) {
   string line;
   OpenFileMap open_files;
   vector<string> fields;
   long line_no = 1;  // already read header line
   Event event;
+  const string dev_null = "/dev/null";
 
   while (line_reader.getline(in, line)) {
     line_no++;
@@ -367,17 +383,22 @@ int readStraceInput(istream &in, FileTableType &file_table,
       int fd = std::stoi(fields[2]);
       const string &filename = fields[3];
 
-      // create a new entry in file_table if this is a new filename
       File *f;
-      FileTableType::iterator ftt_iter = file_table.find(filename);
-      if (ftt_iter == file_table.end()) {
-        // cout << "First instance of " << file_name << endl;
-        f = new File(filename, filename, save_all_events);
-        file_table[filename] = unique_ptr<File>(f);
+      // should this file be ignored?
+      if (filename == dev_null || !referenceFile(target_files, filename)) {
+        f = nullptr;
       } else {
-        f = ftt_iter->second.get();
+        // create a new entry in file_table if this is a new filename
+        FileTableType::iterator ftt_iter = file_table.find(filename);
+        if (ftt_iter == file_table.end()) {
+          // cout << "First instance of " << file_name << endl;
+          f = new File(filename, filename, save_all_events);
+          file_table[filename] = unique_ptr<File>(f);
+        } else {
+          f = ftt_iter->second.get();
+        }
       }
-
+      
       open_files[{pid,fd}] = f;
     }
 
@@ -399,7 +420,7 @@ int readStraceInput(istream &in, FileTableType &file_table,
       Event event(pid, mode, Event::POSIX, offset, len, timestamp, timestamp);
 
       // map fd to File
-      File *f;
+      File *f = nullptr;
       auto open_it = open_files.find({pid,fd});
       if (open_it != open_files.end()) {
         f = open_it->second;
@@ -434,7 +455,7 @@ int readStraceInput(istream &in, FileTableType &file_table,
         }
       }
       
-      f->addEvent(event);
+      if (f) f->addEvent(event);
     }
 
     else if (fn_name == "close") {
@@ -449,10 +470,12 @@ int readStraceInput(istream &in, FileTableType &file_table,
       auto it = open_files.find({pid,fd});
       if (it == open_files.end()) {
         // warn if closing something other than a stdin/out/err stream
+        /*
         if (fd > 2) {
           fprintf(stderr, "WARNING %s:%ld close unopened fd: \"%s\"\n",
                   input_filename.c_str(), line_no, line.c_str());
         }
+        */
         continue;
       }
       open_files.erase(it);
@@ -472,10 +495,12 @@ int readStraceInput(istream &in, FileTableType &file_table,
       auto it = open_files.find({pid,old_fd});
       if (it == open_files.end()) {
         // warn about duplicating an unknown file descriptor other than stdin/out/err
+        /*
         if (old_fd > 2) {
           fprintf(stderr, "WARNING %s:%ld dup of unknown file descriptor: %s\n",
                   input_filename.c_str(), line_no, line.c_str());
         }
+        */
       } else {
         old_file = open_files[{pid,old_fd}];
       }
@@ -483,9 +508,11 @@ int readStraceInput(istream &in, FileTableType &file_table,
       open_files[{pid,new_fd}] = old_file;
 
       // DEBUG
+      /*
       if (old_file) {
         printf("DUP: %d duplication %d->%d %s\n", pid, old_fd, new_fd, old_file->name.c_str());
       }
+      */
     }
 
     // for pipes, set them to null so I/O to them is ignored (we only care about files)
@@ -580,6 +607,25 @@ void splitTabString(std::vector<std::string> &fields, const std::string &line) {
 }
 
 
+/* Call this when <filename> is accessed. This will return false if the file is to be ignored.
+   Also, has the side effect of marking each file when it has been accessed at least once so
+   we can warn a user about targeted files that were never accessed. */
+bool referenceFile(TargetFiles &target_files, const string &filename) {
+  if (target_files.empty()) {
+    return true;
+  } else {
+    auto it = target_files.find(filename);
+    if (it == target_files.end()) {
+      return false;
+    } else {
+      it->second = 1;
+      return true;
+    }
+  }
+}
+  
+
+
 string intSetToString(set<int> &s) {
   std::ostringstream buf;
   bool first = true;
@@ -611,8 +657,10 @@ string intSetToString(set<int> &s) {
        root is the next extent to end
      incoming min-heap, ordered by offset
        root is the next extent to start
+
+   verbose is a setting from 0 to 3, described in printHelp().
 */
-void scanForConflicts(File *f, bool output_conflict_details) {
+void scanForConflicts(File *f, int verbose) {
   if (f->name == "<STDERR>" || f->name == "<STDOUT>") {
     // cout << "  ignored\n";
     return;
@@ -637,35 +685,44 @@ void scanForConflicts(File *f, bool output_conflict_details) {
 
     if (active.size() > 1 && !write_ranks.empty()) {
 
+      // if this is the first conflict found, output a header line
       if (!conflicts_found) {
-        cout << "conflicts-found " << f->name << "\n";
+        if (verbose == 0) {
+          cout << f->name << "\n";
+        } else {
+          cout << "conflicts-found " << f->name << "\n";
+        }
         conflicts_found = true;
       }
-      
-      cout << "  CONFLICT bytes " << range_merge.getRangeStart() << ".."
-           << (range_merge.getRangeEnd()-1) << ":";
-      if (!read_ranks.empty()) {
-        cout << " read ranks={" << intSetToString(read_ranks) << "}";
-      }
 
-      if (!write_ranks.empty()) {
-        cout << " write ranks={" << intSetToString(write_ranks) << "}";
-      }
+      if (verbose >= 2) {
+        cout << "  bytes " << range_merge.getRangeStart() << ".."
+             << (range_merge.getRangeEnd()-1) << ":";
+        if (!read_ranks.empty()) {
+          cout << " read ranks={" << intSetToString(read_ranks) << "}";
+        }
 
-      if (!rw_ranks.empty()) {
-        cout << " read/write ranks={" << intSetToString(rw_ranks) << "}";
-      }
-      cout << "\n";
+        if (!write_ranks.empty()) {
+          cout << " write ranks={" << intSetToString(write_ranks) << "}";
+        }
 
-      if (output_conflict_details) {
-        outputConflictDetails(f, range_merge.getRangeStart(),
-                              range_merge.getRangeEnd());
+        if (!rw_ranks.empty()) {
+          cout << " read/write ranks={" << intSetToString(rw_ranks) << "}";
+        }
+        cout << "\n";
+
+        if (verbose >= 3) {
+          outputConflictDetails(f, range_merge.getRangeStart(),
+                                  range_merge.getRangeEnd());
+        }
       }
     }
   }
 
-  if (!conflicts_found) {
-    cout << "no-conflicts " << f->name << "\n";
+  if (!conflicts_found && verbose >= 1) {
+    AccessMode access_mode = f->getAccessMode();
+    const char *mode_name = accessModeName(access_mode);
+    cout << "no-conflicts " << mode_name << " " << f->name << "\n";
   }
   
 }
@@ -709,8 +766,14 @@ bool Options::parseArgs(int argc, const char **argv) {
     if (!strcmp(arg, "-summary")) {
       output_per_rank_summary = true;
       argno++;
-    } else if (!strcmp(arg, "-audit")) {
-      output_conflict_details = true;
+    } else if (!strncmp(arg, "-file=", 6)) {
+      std::string filename = arg+6;
+      target_files[filename] = 0;
+      argno++;
+    } else if (!strncmp(arg, "-verbose=", 9)) {
+      if (1 != sscanf(arg+9, "%d", &verbose)
+          || verbose < 0 || verbose > 3)
+        printHelp();
       argno++;
     } else if (arg[0] == '-' && strlen(arg) > 1) {
       return false;
