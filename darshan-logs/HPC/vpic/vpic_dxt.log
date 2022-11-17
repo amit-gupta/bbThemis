@@ -1,0 +1,40 @@
+# darshan log version: 3.21
+# compression method: ZLIB
+# exe: /scratch1/06058/iwang/benchmarks/vpic/clx/224/test_224.ft_clx_intel-18.0.2_impi-18.0.2_-xCORE-AVX512
+# uid: 853572
+# jobid: 4801201
+# start_time: 1662480217
+# start_time_asci: Tue Sep  6 11:03:37 2022
+# end_time: 1662480300
+# end_time_asci: Tue Sep  6 11:05:00 2022
+# nprocs: 224
+# run time: 84
+# metadata: lib_ver = 3.2.1
+# metadata: h = romio_no_indep_rw=true;cb_nodes=4
+
+# log file regions
+# -------------------------------------------------------
+# header: 360 bytes (uncompressed)
+# job data: 292 bytes (compressed)
+# record table: 33866 bytes (compressed)
+# STDIO module: 68273 bytes (compressed), ver=2
+
+# mounted file systems (mount point and fs type)
+# -------------------------------------------------------
+# mount entry:	/proc/sys/fs/binfmt_misc	autofs
+# mount entry:	/sys/kernel/config	configfs
+# mount entry:	/sys/fs/pstore	pstore
+# mount entry:	/dev/mqueue	mqueue
+# mount entry:	/scratch1	lustre
+# mount entry:	/scratch2	lustre
+# mount entry:	/scratch3	lustre
+# mount entry:	/home1	lustre
+# mount entry:	/work2	lustre
+# mount entry:	/admin	nfs
+# mount entry:	/boot	xfs
+# mount entry:	/dev	devtmpfs
+# mount entry:	/tmp	xfs
+# mount entry:	/var	xfs
+# mount entry:	/	xfs
+
+# no DXT module data available for this Darshan log.
