@@ -301,6 +301,10 @@ class StraceParser:
     
     (args,result) = self.parseArgsAndResult(args_str)
 
+    # print("args = " + repr(args))
+    # print("result = " + repr(result))
+    # sys.stdout.flush()
+
     try:
       fn(pid, timestamp, args, result)
     except Exception as e:
@@ -529,12 +533,12 @@ class StraceParser:
     key = (pid, fd)
     f = self.open_files.get(key)
     if not f:
-      sys.stderr.write(f'WARNING seek on unknown fd {key!r} at {timestamp}')
+      sys.stderr.write(f'WARNING seek on unknown fd {key!r} at {timestamp}\n')
       return
 
     if f == 'pipe':
       # can't seek on a pipe, so this should have returned -1
-      sys.stderr.write(f'WARNING seek on unknown a pipe {key!r} at {timestamp}')
+      sys.stderr.write(f'WARNING seek on unknown a pipe {key!r} at {timestamp}\n')
       return
     
     if whence == 'SEEK_CUR':
@@ -672,7 +676,7 @@ class StraceParser:
       return
     
     # length = tokenToInt(args[2])
-    length = tokenToInt(result)
+    length = tokenToInt(firstOrOnly(result))
 
     open_file = self.open_files.get((pid, fd))
     if not open_file:
@@ -700,7 +704,7 @@ class StraceParser:
     # ssize_t pread(int fd, void *buf, size_t count, off_t offset);
     if len(args) != 4:
       raise Exception(f'pread() args error')
-    fd = tokenToInt(args[0])
+    fd = tokenToInt(firstOrOnly(args[0]))
     # count = tokenToInt(args[2])
     offset = tokenToInt(args[3])
     result_count = tokenToInt(result)
