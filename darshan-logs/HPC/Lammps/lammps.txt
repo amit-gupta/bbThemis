@@ -1,0 +1,160 @@
+# darshan log version: 3.21
+# compression method: ZLIB
+# exe: /scratch1/06280/mcawood/benchpro/apps/frontera/cascadelake/intel22/intel22impi/lammps/23Jun2022/default/install/lmp_intel_cpu_intelmpi -var x -var y -var z -var t
+# uid: 855796
+# jobid: 4790397
+# start_time: 1662160822
+# start_time_asci: Fri Sep  2 18:20:22 2022
+# end_time: 1662160837
+# end_time_asci: Fri Sep  2 18:20:37 2022
+# nprocs: 56
+# run time: 16
+# metadata: lib_ver = 3.2.1
+# metadata: h = romio_no_indep_rw=true;cb_nodes=4
+
+# log file regions
+# -------------------------------------------------------
+# header: 360 bytes (uncompressed)
+# job data: 311 bytes (compressed)
+# record table: 165 bytes (compressed)
+# STDIO module: 222 bytes (compressed), ver=2
+
+# mounted file systems (mount point and fs type)
+# -------------------------------------------------------
+# mount entry:	/proc/sys/fs/binfmt_misc	autofs
+# mount entry:	/sys/kernel/config	configfs
+# mount entry:	/sys/fs/pstore	pstore
+# mount entry:	/dev/mqueue	mqueue
+# mount entry:	/scratch2	lustre
+# mount entry:	/scratch3	lustre
+# mount entry:	/scratch1	lustre
+# mount entry:	/work2	lustre
+# mount entry:	/admin	nfs
+# mount entry:	/home1	lustre
+# mount entry:	/boot	xfs
+# mount entry:	/var	xfs
+# mount entry:	/tmp	xfs
+# mount entry:	/dev	devtmpfs
+# mount entry:	/	xfs
+
+# description of columns:
+#   <module>: module responsible for this I/O record.
+#   <rank>: MPI rank.  -1 indicates that the file is shared
+#      across all processes and statistics are aggregated.
+#   <record id>: hash of the record's file path
+#   <counter name> and <counter value>: statistical counters.
+#      A value of -1 indicates that Darshan could not monitor
+#      that counter, and its value should be ignored.
+#   <file name>: full file path for the record.
+#   <mount pt>: mount point that the file resides on.
+#   <fs type>: type of file system that the file resides on.
+
+# *******************************************************
+# STDIO module data
+# *******************************************************
+
+# description of STDIO counters:
+#   STDIO_{OPENS|FDOPENS|WRITES|READS|SEEKS|FLUSHES} are types of operations.
+#   STDIO_BYTES_*: total bytes read and written.
+#   STDIO_MAX_BYTE_*: highest offset byte read and written.
+#   STDIO_*_RANK: rank of the processes that were the fastest and slowest at I/O (for shared files).
+#   STDIO_*_RANK_BYTES: bytes transferred by the fastest and slowest ranks (for shared files).
+#   STDIO_F_*_START_TIMESTAMP: timestamp of the first call to that type of function.
+#   STDIO_F_*_END_TIMESTAMP: timestamp of the completion of the last call to that type of function.
+#   STDIO_F_*_TIME: cumulative time spent in different types of functions.
+#   STDIO_F_*_RANK_TIME: fastest and slowest I/O time for a single rank (for shared files).
+#   STDIO_F_VARIANCE_RANK_*: variance of total I/O time and bytes moved for all ranks (for shared files).
+
+# WARNING: STDIO_OPENS counter includes STDIO_FDOPENS count
+
+# WARNING: STDIO counters related to file offsets may be incorrect if a file is simultaneously accessed by both STDIO and POSIX (e.g., using fdopen())
+# 	- Affected counters include: MAX_BYTE_{READ|WRITTEN}
+
+#<module>	<rank>	<record id>	<counter>	<value>	<file name>	<mount pt>	<fs type>
+STDIO	0	17411353636768986119	STDIO_OPENS	1	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_FDOPENS	0	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_READS	0	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_WRITES	66	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_SEEKS	0	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_FLUSHES	1	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_BYTES_WRITTEN	3382	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_BYTES_READ	0	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_MAX_BYTE_READ	0	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_MAX_BYTE_WRITTEN	3381	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_FASTEST_RANK	0	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_FASTEST_RANK_BYTES	0	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_SLOWEST_RANK	0	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_SLOWEST_RANK_BYTES	0	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_META_TIME	0.002382	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_WRITE_TIME	0.000665	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_READ_TIME	0.000000	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_OPEN_START_TIMESTAMP	0.029582	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_CLOSE_START_TIMESTAMP	14.718191	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_WRITE_START_TIMESTAMP	0.034213	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_READ_START_TIMESTAMP	0.000000	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_OPEN_END_TIMESTAMP	0.031764	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_CLOSE_END_TIMESTAMP	14.718391	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_WRITE_END_TIMESTAMP	14.718187	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_READ_END_TIMESTAMP	0.000000	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_FASTEST_RANK_TIME	0.000000	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_SLOWEST_RANK_TIME	0.000000	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_VARIANCE_RANK_TIME	0.000000	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	0	17411353636768986119	STDIO_F_VARIANCE_RANK_BYTES	0.000000	/scratch1/06280/mcawood/benchpro/results/pending/mcawood_ljmelt_2022-09-02T16-24_001N_56R_01T_00G/log.lammps	/scratch1	lustre
+STDIO	-1	14734109647742566553	STDIO_OPENS	56	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_FDOPENS	0	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_READS	35	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_WRITES	0	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_SEEKS	0	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_FLUSHES	0	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_BYTES_WRITTEN	0	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_BYTES_READ	685	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_MAX_BYTE_READ	684	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_MAX_BYTE_WRITTEN	0	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_FASTEST_RANK	1	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_FASTEST_RANK_BYTES	0	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_SLOWEST_RANK	0	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_SLOWEST_RANK_BYTES	685	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_META_TIME	0.000000	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_WRITE_TIME	0.000000	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_READ_TIME	0.000018	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_OPEN_START_TIMESTAMP	0.000000	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_CLOSE_START_TIMESTAMP	0.000000	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_WRITE_START_TIMESTAMP	0.000000	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_READ_START_TIMESTAMP	0.115790	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_OPEN_END_TIMESTAMP	0.000000	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_CLOSE_END_TIMESTAMP	0.000000	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_WRITE_END_TIMESTAMP	0.000000	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_READ_END_TIMESTAMP	0.184542	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_FASTEST_RANK_TIME	0.000000	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_SLOWEST_RANK_TIME	0.000018	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_VARIANCE_RANK_TIME	0.000000	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	14734109647742566553	STDIO_F_VARIANCE_RANK_BYTES	8229.392538	<STDIN>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_OPENS	56	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_FDOPENS	0	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_READS	0	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_WRITES	34	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_SEEKS	0	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_FLUSHES	0	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_BYTES_WRITTEN	2752	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_BYTES_READ	0	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_MAX_BYTE_READ	0	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_MAX_BYTE_WRITTEN	2751	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_FASTEST_RANK	1	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_FASTEST_RANK_BYTES	0	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_SLOWEST_RANK	0	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_SLOWEST_RANK_BYTES	2752	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_META_TIME	0.000000	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_WRITE_TIME	0.000280	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_READ_TIME	0.000000	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_OPEN_START_TIMESTAMP	0.000000	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_CLOSE_START_TIMESTAMP	0.000000	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_WRITE_START_TIMESTAMP	0.034205	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_READ_START_TIMESTAMP	0.000000	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_OPEN_END_TIMESTAMP	0.000000	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_CLOSE_END_TIMESTAMP	0.000000	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_WRITE_END_TIMESTAMP	14.718185	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_READ_END_TIMESTAMP	0.000000	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_FASTEST_RANK_TIME	0.000000	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_SLOWEST_RANK_TIME	0.000280	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_VARIANCE_RANK_TIME	0.000000	<STDOUT>	UNKNOWN	UNKNOWN
+STDIO	-1	15920181672442173319	STDIO_F_VARIANCE_RANK_BYTES	132826.122449	<STDOUT>	UNKNOWN	UNKNOWN
