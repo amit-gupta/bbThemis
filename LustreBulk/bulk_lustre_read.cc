@@ -49,7 +49,7 @@ double t0;
 MPI_Comm comm;
 
 #define BUFFER_SIZE 1048576
-const int N_TESTS = 5;
+const int N_TESTS = 1;
 
 enum Tags {TAG_CONTENT1 = 100, TAG_CONTENT2, TAG_CONTENT3, TAG_CONTENT4};
 
@@ -218,6 +218,7 @@ void sendContent(int dest_rank,
   vector<char> all_filenames;
   vector<uint64_t> all_values;
   int count = 0;
+  int dest_node = dest_rank / node_size;
 
   all_filenames.reserve(10000);
   all_values.reserve(100);
@@ -226,7 +227,8 @@ void sendContent(int dest_rank,
     int ost_idx = it.first;
     auto map_it = map_ost_to_node.find(ost_idx);
     assert(map_it != map_ost_to_node.end());
-    if (map_it->second != dest_rank) continue;
+    // printf("[%d] map ost %d to node %d\n", rank, ost_idx, map_it->second);
+    if (map_it->second != dest_node) continue;
     const vector<StridedContent> &v = it.second;
     count += v.size();
     for (const StridedContent &sc : v) {
@@ -268,6 +270,8 @@ void receiveContent(vector<StridedContent> &my_content, int source_rank) {
   for (int i=0; i < count; i++) {
     my_content.emplace_back(fn, all_values[i*4], all_values[i*4+1], all_values[i*4+2], all_values[i*4+3]);
   }
+
+  // printf("[%d] received %d items\n", rank, (int)my_content.size());
 }
 
 
@@ -444,7 +448,7 @@ int main(int argc, char **argv) {
     int map_node_idx = 0;
     for (auto &ost : mapper.ost_content) {
       map_ost_to_node[ost.first] = map_node_idx;
-      printf("OST %d -> node %d\n", ost.first, map_node_idx);
+      // printf("OST %d -> node %d\n", ost.first, map_node_idx);
       if (++map_node_idx == node_count)
         map_node_idx = 0;
     }
