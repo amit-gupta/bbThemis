@@ -25,14 +25,34 @@ struct StridedContent {
   // offset between start of each block, in bytes.
   uint64_t stride;
 
+  // total size of the file
+  uint64_t file_size;
+
   StridedContent(const std::string &file_name_,
                  uint64_t offset_,
                  uint64_t length_,
-                 uint64_t stride_)
+                 uint64_t stride_,
+                 uint64_t file_size_)
     : file_name(file_name_),
       offset(offset_),
       length(length_),
-      stride(stride_) {}
+      stride(stride_),
+      file_size(file_size_) {}
+
+  // compute the number of bytes needed to scan my subset of this file
+  uint64_t getSize() {
+    uint64_t full_cycles = file_size / stride;
+    uint64_t remainder = file_size - (full_cycles * stride);
+    uint64_t extra;
+    if (remainder <= offset) {
+      extra = 0;
+    } else if (remainder >= offset + length) {
+      extra = length;
+    } else {
+      extra = remainder - offset;
+    }
+    return full_cycles * length + extra;
+  }
 };
 
 
@@ -47,22 +67,27 @@ public:
 };
 
 
+using OSTContentMap = std::map<int, std::vector<StridedContent>>;
+
+
 /* Implements OSTContentHandler to store data in a map indexed by OST. */
-class OSTContentMap : public OSTContentHandler {
+class OSTContentMapper : public OSTContentHandler {
 public:
-  std::map<int, std::vector<StridedContent>> ost_content;
+  OSTContentMap ost_content;
   
   virtual void addContent(int ost_idx, const StridedContent &content) {
     auto it = ost_content.find(ost_idx);
     if (it == ost_content.end()) {
-      std::vector<StridedContent> v;
-      v.push_back(content);
-      ost_content[ost_idx] = v;
+      ost_content[ost_idx] = std::vector<StridedContent> {content};
     } else {
       it->second.push_back(content);
     }
   }
 };
+
+
+// Map filenames to their size.
+using FileSet = std::map<std::string, uint64_t>;
 
 
 /* Scans the list of file or directory names, retrieves the Lustre striping
@@ -80,11 +105,15 @@ public:
      3, ("/home/ed/foo", 0, 1048576, 2097152)
      7, ("/home/ed/foo", 1048576, 1048576, 2097152)
 
+   all_files will be filled with every filename seen. It maps a filename
+   to the file size.
+
    The number of files scanned is returned.
    Any error encountered are output to stderr.
 */
 int scanLustreFiles(const std::vector<std::string> &paths,
-                    OSTContentHandler *ost_content_handler);
+                    OSTContentHandler *ost_content_handler,
+                    FileSet &all_files);
 
 
 

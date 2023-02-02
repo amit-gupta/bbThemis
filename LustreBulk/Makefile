@@ -1,14 +1,11 @@
 default: all
 
-EXECS = test_lustre_scan_files
+EXECS = test_lustre_scan_files bulk_lustre_read
 
 all: $(EXECS)
 
-# USE_LUSTRE=-DNO_LUSTRE
-LUSTRE_LIB=-l
-
-MISSING_LUSTRE := $(shell command -v lfs 2> /dev/null)
-ifdef MISSING_LUSTRE
+HAVE_LUSTRE := $(shell command -v lfs 2> /dev/null)
+ifdef HAVE_LUSTRE
 LUSTRE_FLAG=-DHAVE_LUSTRE
 LUSTRE_LIB=-llustreapi
 else
@@ -23,6 +20,11 @@ CC = gcc $(CFLAGS)
 CXX = g++ -std=c++14 $(CFLAGS)
 MPICC = mpicc $(CFLAGS)
 MPICXX = mpicxx -std=c++14 $(CFLAGS)
+
+
+bulk_lustre_read: bulk_lustre_read.cc lustre_scan_files.o \
+  lustre_wrapper.o canonical_path.o
+	$(MPICXX) $^ $(LUSTRE_LIB) -o $@
 
 test_lustre_scan_files: test_lustre_scan_files.cc lustre_scan_files.o \
   lustre_wrapper.o canonical_path.o

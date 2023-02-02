@@ -18,12 +18,19 @@ using std::string;
 
 OSTContentHandler *global_ost_content_handler = 0;
 int global_file_count = 0;
-
+FileSet *global_all_files = 0;
 
 static void scanFile(const char *filename, const struct stat *stat_buf) {
   int err, stripe_count;
   uint64_t stripe_size;
 
+  string filename_str(filename);
+  if (global_all_files->find(filename_str) != global_all_files->end()) {
+    printf("Skipping %s (already scanned)\n", filename);
+    return;
+  }
+  (*global_all_files)[filename_str] = stat_buf->st_size;
+  
   global_file_count++;
   // printf("Scanning file %s\n", filename);
   
@@ -44,7 +51,8 @@ static void scanFile(const char *filename, const struct stat *stat_buf) {
     return;
   }
 
-  StridedContent content(filename, 0, stripe_size, stripe_size * stripe_count);
+  StridedContent content(filename, 0, stripe_size, stripe_size * stripe_count,
+                         stat_buf->st_size);
   for (int i=0; i < stripe_count; i++) {
     int ost_idx = osts[i];
     // printf("%s%d", (i==0) ? "" : " ", ost_idx);
@@ -70,24 +78,21 @@ static int visitFn(const char *filename, const struct stat *stat_buf,
 
 
 int scanLustreFiles(const std::vector<std::string> &paths,
-                    OSTContentHandler *ost_content_handler) {
+                    OSTContentHandler *ost_content_handler,
+                    FileSet &all_files) {
 
   struct stat stat_buf;
-  std::set<string> scanned_files;
+  // std::set<string> scanned_files;
 
   global_ost_content_handler = ost_content_handler;
   global_file_count = 0;
+  global_all_files = &all_files;
+  global_all_files->clear();
   
   for (const string &input_path : paths) {
     // check if this path has been scanned already
     string path_str = canonicalPath(input_path.c_str());
     const char *path = path_str.c_str();
-    
-    if (scanned_files.find(path_str) != scanned_files.end()) {
-      printf("Skipping %s\n", path);
-      continue;
-    }
-    
 
     // is this a file, directory, or other?
     if (stat(path, &stat_buf)) {
@@ -113,6 +118,8 @@ int scanLustreFiles(const std::vector<std::string> &paths,
       fprintf(stderr, "Unrecognized file type: %s\n", path);
     }
   }
+
+  global_all_files = 0;
     
   return global_file_count;
 }
