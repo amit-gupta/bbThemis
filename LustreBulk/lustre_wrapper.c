@@ -84,9 +84,11 @@ int lustre_get_striping_details(const char *filename,
   int count = stripe_params->lmm_stripe_count;
   if (count > array_size) return EINVAL;
 
+  /* printf("lustre_get_striping_details %s\n", filename); */
   const struct lov_user_ost_data_v1 *ost = stripe_params->lmm_objects;
   for (int i=0; i < count; i++) {
     ost_idx_array[i] = ost[i].l_ost_idx;
+    /* printf("  ost %d = %d\n", i, ost[i].l_ost_idx); */
   }
 
   free(stripe_params);

@@ -1,3 +1,4 @@
 *~
 *.o
 *.exe
+test_lustre_scan_files

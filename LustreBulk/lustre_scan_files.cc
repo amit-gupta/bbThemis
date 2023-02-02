@@ -25,7 +25,7 @@ static void scanFile(const char *filename, const struct stat *stat_buf) {
   uint64_t stripe_size;
 
   global_file_count++;
-  printf("Scanning file %s\n", filename);
+  // printf("Scanning file %s\n", filename);
   
   err = lustre_get_striping(filename, &stripe_count, &stripe_size);
   if (err) {
@@ -34,7 +34,7 @@ static void scanFile(const char *filename, const struct stat *stat_buf) {
     return;
   }
 
-  printf("  count=%d size=%ld, osts={", stripe_count, (long)stripe_size);
+  // printf("  count=%d size=%ld, osts={", stripe_count, (long)stripe_size);
 
   vector<int> osts(stripe_count);
   err = lustre_get_striping_details(filename, osts.size(), osts.data());
@@ -47,18 +47,18 @@ static void scanFile(const char *filename, const struct stat *stat_buf) {
   StridedContent content(filename, 0, stripe_size, stripe_size * stripe_count);
   for (int i=0; i < stripe_count; i++) {
     int ost_idx = osts[i];
-    printf("%s%d", (i==0) ? "" : " ", ost_idx);
+    // printf("%s%d", (i==0) ? "" : " ", ost_idx);
     content.offset = i * stripe_size;
     global_ost_content_handler->addContent(ost_idx, content);
   }
-  printf("}\n");
+  // printf("}\n");
     
 }
 
 
 // called by nftw()
-static visitFn(const char *filename, const struct stat *stat_buf,
-               int type_flag, struct FTW *ftw) {
+static int visitFn(const char *filename, const struct stat *stat_buf,
+                   int type_flag, struct FTW *ftw) {
 
   // ignore anything except regular files
   if (type_flag != FTW_F) return 0;
