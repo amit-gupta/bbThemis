@@ -15,7 +15,7 @@ endif
 
 OPT = -g
 # OPT = -O3
-CFLAGS = -Wall $(OPT) $(LUSTRE_FLAG)
+CFLAGS = -Wall -D_GNU_SOURCE $(OPT) $(LUSTRE_FLAG)
 CC = gcc $(CFLAGS)
 CXX = g++ -std=c++14 $(CFLAGS)
 MPICC = mpicc $(CFLAGS)

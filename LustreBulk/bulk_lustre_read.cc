@@ -23,13 +23,18 @@
 */
 
 
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <fcntl.h>
 #include <limits.h>
 #include <map>
 #include <mpi.h>
 #include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <vector>
 #include "lustre_scan_files.hh"
 
@@ -43,7 +48,8 @@ int np, rank, node_count, node_idx, node_size, rank_on_node;
 double t0;
 MPI_Comm comm;
 
-const int N_TESTS = 3;
+#define BUFFER_SIZE 1048576
+const int N_TESTS = 5;
 
 enum Tags {TAG_CONTENT1 = 100, TAG_CONTENT2, TAG_CONTENT3, TAG_CONTENT4};
 
@@ -56,6 +62,15 @@ struct Options {
 
 double getTime() {
   return MPI_Wtime() - t0;
+}
+
+
+bool Options::parseArgs(int argc, char **argv) {
+  // no options yet
+
+  file_list.insert(file_list.end(), argv + 1, argv + argc);
+
+  return true;
 }
 
 
@@ -264,13 +279,118 @@ void printContentList(const vector<StridedContent> &my_content) {
 }
 
 
-bool Options::parseArgs(int argc, char **argv) {
-  // no options yet
+// return number of bytes read
+uint64_t readFile(const char *filename) {
+  char buffer[BUFFER_SIZE];
+  uint64_t file_size = 0;
+  
+  int fd = open(filename, O_RDONLY);
+  if (fd < 0) {
+    fprintf(stderr, "[%d] failed to open %s for reading\n", rank, filename);
+    return 0;
+  }
 
-  file_list.insert(file_list.end(), argv + 1, argv + argc);
+  while (true) {
+    ssize_t bytes_read = read(fd, buffer, BUFFER_SIZE);
+    if (bytes_read <= 0) break;
+    file_size += bytes_read;
+  }
 
-  return true;
+  close(fd);
+  return file_size;
 }
+  
+  
+// returns total bytes read
+long singleReader(const FileSet &all_files) {
+  long total_bytes_read = 0;
+  
+  for (auto &f : all_files) {
+    const char *filename = f.first.c_str();
+    long file_size = f.second;
+
+    long bytes_read = readFile(filename);
+    if (bytes_read != file_size) {
+      printf("[%d] expected %s to be %ld bytes, got %ld\n", rank, filename, (long) file_size, bytes_read);
+    }
+
+    total_bytes_read += bytes_read;
+  }
+
+  return total_bytes_read;
+}
+
+
+/* Collective call. Only read 1 in np files. */
+long allRanksRead(const FileSet &all_files) {
+  long total_bytes_read = 0;
+  int m = 0;
+  for (auto &f : all_files) {
+    if (m == rank) {
+      const char *filename = f.first.c_str();
+      long file_size = f.second;
+
+      // printf("[%d] read %s\n", rank, filename);
+      
+      long bytes_read = readFile(filename);
+      if (bytes_read != file_size) {
+        printf("[%d] expected %s to be %ld bytes, got %ld\n", rank, filename, (long) file_size, bytes_read);
+      }
+      total_bytes_read += bytes_read;
+    }
+    
+    if (++m == np) m = 0;
+  }
+
+  if (rank==0) {
+    MPI_Reduce(MPI_IN_PLACE, &total_bytes_read, 1, MPI_LONG, MPI_SUM, 0, comm);
+  } else {
+    MPI_Reduce(&total_bytes_read, 0, 1, MPI_LONG, MPI_SUM, 0, comm);
+  }
+    
+  return total_bytes_read;
+}
+
+
+long alignedRead(const vector<StridedContent> &content_list) {
+
+  vector<char> buf;
+  long total_bytes_read = 0;
+
+  for (const StridedContent &sc : content_list) {
+    const char *filename = sc.file_name.c_str();
+    int fd = open(filename, O_RDONLY);
+    if (fd < 0) {
+      fprintf(stderr, "[%d] failed to open %s for reading\n", rank, filename);
+      continue;
+    }
+
+    buf.resize(sc.length);
+    uint64_t pos = sc.offset;
+    while (pos < sc.file_size) {
+      int read_len = std::min(sc.length, sc.file_size - pos);
+      ssize_t bytes_read = pread(fd, buf.data(), read_len, pos);
+      if (bytes_read != read_len) {
+        fprintf(stderr, "[%d] short read %ld of %ld bytes from %s at %ld\n",
+                rank, (long)bytes_read, (long)read_len, filename, (long)pos);
+        break;
+      }
+      total_bytes_read += bytes_read;
+      pos += sc.stride;
+    }
+    close(fd);
+  }
+  
+  if (rank==0) {
+    MPI_Reduce(MPI_IN_PLACE, &total_bytes_read, 1, MPI_LONG, MPI_SUM, 0, comm);
+  } else {
+    MPI_Reduce(&total_bytes_read, 0, 1, MPI_LONG, MPI_SUM, 0, comm);
+  }
+    
+  return total_bytes_read;
+
+}
+
 
 
 int main(int argc, char **argv) {
@@ -294,7 +414,7 @@ int main(int argc, char **argv) {
   // this describes the data this rank will read
   vector<StridedContent> my_content;
   uint64_t total_bytes = 0;
-  // double total_mb = 0;
+  double total_mb = 0;
   FileSet all_files;
 
   // scan all the input files on rank 0, then distribute work to other ranks
@@ -314,7 +434,7 @@ int main(int argc, char **argv) {
 
     for (auto &it : all_files)
       total_bytes += it.second;
-    // total_mb = (double)total_bytes / (1<<20);
+    total_mb = (double)total_bytes / (1<<20);
 
     broadcastFileSet(all_files, 0);
     printf("%ld total bytes\n", (long)total_bytes);
@@ -352,6 +472,7 @@ int main(int argc, char **argv) {
       // TODO distribute work to other ranks on this node
   }
 
+  /*
   struct timespec ts;
   ts.tv_sec = 0;
   ts.tv_nsec = 500*1000*1000;
@@ -363,30 +484,44 @@ int main(int argc, char **argv) {
     }
   }
   MPI_Barrier(comm);
+  */
 
-#if 0
   for (int i=0; i < N_TESTS; i++) {
     double timer_single, timer_all, timer_aligned;
+    uint64_t bytes_read;
 
     // single reader
     if (rank == 0) {
       timer_single = MPI_Wtime();
-      singleReader(opt.file_list);
+      bytes_read = singleReader(all_files);
+      if (bytes_read != total_bytes) {
+        printf("[%d] ERROR singleReader read %ld of %ld bytes\n", rank, (long)bytes_read, (long)total_bytes);
+      }
       timer_single = MPI_Wtime() - timer_single;
     }
 
     // all ranks read, selecting their files round-robin from all_files
     MPI_Barrier(comm);
     timer_all = MPI_Wtime();
-    allRanksRead(all_files);
+    bytes_read = allRanksRead(all_files);
     MPI_Barrier(comm);
     timer_all = MPI_Wtime() - timer_all;
+    if (rank==0) {
+      if (bytes_read != total_bytes) {
+        printf("[%d] ERROR allRanksRead read %ld of %ld bytes\n", rank, (long)bytes_read, (long)total_bytes);
+      }
+    }
 
     // aligned read
     timer_aligned = MPI_Wtime();
-    alignedRead(my_content);
+    bytes_read = alignedRead(my_content);
     MPI_Barrier(comm);
     timer_aligned = MPI_Wtime() - timer_aligned;
+    if (rank==0) {
+      if (bytes_read != total_bytes) {
+        printf("[%d] ERROR alignedRead read %ld of %ld bytes\n", rank, (long)bytes_read, (long)total_bytes);
+      }
+    }
 
     if (rank == 0) {
       printf("Test %d\n", i);
@@ -395,7 +530,7 @@ int main(int argc, char **argv) {
       printf("  aligned readers: %.6fs, %.3f mb/s\n", timer_aligned, total_mb / timer_aligned);
     }
   }
-#endif
+
   
 
   MPI_Finalize();
