@@ -1,0 +1,5 @@
+*~
+*.o
+*.exe
+test_lustre_scan_files
+bulk_lustre_read
