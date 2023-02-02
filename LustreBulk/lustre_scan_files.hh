@@ -39,6 +39,8 @@ struct StridedContent {
       stride(stride_),
       file_size(file_size_) {}
 
+  StridedContent() : file_name(""), offset(0), length(0), stride(0), file_size(0) {}
+
   // compute the number of bytes needed to scan my subset of this file
   uint64_t getSize() {
     uint64_t full_cycles = file_size / stride;

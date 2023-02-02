@@ -60,6 +60,75 @@ struct Options {
 };
 
 
+/* Container for packing and unpacking StridedContent objects into type-contiguous
+   data for sending and receiving via MPI.
+ */
+class PackedContent {
+public:
+  PackedContent() {
+    all_filenames.reserve(1000);
+    all_values.reserve(100);
+  }
+  
+  void add(const StridedContent &sc) {
+    const char *s = sc.file_name.c_str();
+    all_filenames.insert(all_filenames.end(), s, s + sc.file_name.length() + 1);
+    all_values.push_back(sc.offset);
+    all_values.push_back(sc.length);
+    all_values.push_back(sc.stride);
+    all_values.push_back(sc.file_size);
+  }
+
+  void send(int dest_rank, MPI_Comm comm) {
+    int count = size();
+    MPI_Send(&count, 1, MPI_INT, dest_rank, TAG_CONTENT1, comm);
+    uint64_t all_filenames_len = all_filenames.size();
+    if (all_filenames.size() > INT_MAX) {
+      fprintf(stderr, "[%d] ERROR: %ld bytes of filenames (can only handle 2GB)\n", rank, (long)all_filenames.size());
+    }
+    MPI_Send(&all_filenames_len, 1, MPI_UINT64_T, dest_rank, TAG_CONTENT2, comm);
+    MPI_Send(all_filenames.data(), (int) all_filenames.size(), MPI_BYTE, dest_rank, TAG_CONTENT3, comm);
+    MPI_Send(all_values.data(), count * 4, MPI_UINT64_T, dest_rank, TAG_CONTENT4, comm);
+  }
+
+  void recv(int source_rank, MPI_Comm comm) {
+    int count;
+    MPI_Recv(&count, 1, MPI_INT, source_rank, TAG_CONTENT1, comm, MPI_STATUS_IGNORE);
+    uint64_t all_filenames_len;
+    MPI_Recv(&all_filenames_len, 1, MPI_UINT64_T, source_rank, TAG_CONTENT2, comm, MPI_STATUS_IGNORE);
+    all_filenames.resize(all_filenames_len);
+    MPI_Recv(all_filenames.data(), all_filenames_len, MPI_BYTE, source_rank, TAG_CONTENT3, comm, MPI_STATUS_IGNORE);
+    all_values.resize(count * 4);
+    MPI_Recv(all_values.data(), count * 4, MPI_UINT64_T, source_rank, TAG_CONTENT4, comm, MPI_STATUS_IGNORE);
+  }
+    
+  void unpack(vector<StridedContent> &list) {
+    int count = size();
+    list.clear();
+    list.reserve(count);
+    const char *fn = all_filenames.data();
+    for (int i=0; i < count; i++) {
+      assert((size_t)(fn - all_filenames.data()) < all_filenames.size());
+      list.emplace_back(fn, all_values[i*4], all_values[i*4+1], all_values[i*4+2], all_values[i*4+3]);
+      fn += strlen(fn) + 1;
+    }
+  }
+
+  int size() const {
+    return all_values.size() / 4;
+  }
+
+  void clear() {
+    all_filenames.clear();
+    all_values.clear();
+  }
+
+private:
+  vector<char> all_filenames;
+  vector<uint64_t> all_values;
+};  
+
+
 double getTime() {
   return MPI_Wtime() - t0;
 }
@@ -215,13 +284,8 @@ void gatherRootContent(vector<StridedContent> &my_content,
 void sendContent(int dest_rank,
                  const OSTContentMap &ost_content,
                  const map<int,int> &map_ost_to_node) {
-  vector<char> all_filenames;
-  vector<uint64_t> all_values;
-  int count = 0;
+  PackedContent packed;
   int dest_node = dest_rank / node_size;
-
-  all_filenames.reserve(10000);
-  all_values.reserve(100);
   
   for (auto &it : ost_content) {
     int ost_idx = it.first;
@@ -230,47 +294,23 @@ void sendContent(int dest_rank,
     // printf("[%d] map ost %d to node %d\n", rank, ost_idx, map_it->second);
     if (map_it->second != dest_node) continue;
     const vector<StridedContent> &v = it.second;
-    count += v.size();
     for (const StridedContent &sc : v) {
-      const char *s = sc.file_name.c_str();
-      all_filenames.insert(all_filenames.end(), s, s + sc.file_name.length() + 1);
-      all_values.push_back(sc.offset);
-      all_values.push_back(sc.length);
-      all_values.push_back(sc.stride);
-      all_values.push_back(sc.file_size);
+      packed.add(sc);
     }
   }
 
-  MPI_Send(&count, 1, MPI_INT, dest_rank, TAG_CONTENT1, comm);
-  uint64_t all_filenames_len = all_filenames.size();
-  if (all_filenames.size() > INT_MAX) {
-    fprintf(stderr, "[%d] ERROR: %ld bytes of filenames (can only handle 2GB)\n", rank, (long)all_filenames.size());
-  }
-  MPI_Send(&all_filenames_len, 1, MPI_UINT64_T, dest_rank, TAG_CONTENT2, comm);
-  MPI_Send(all_filenames.data(), (int) all_filenames.size(), MPI_BYTE, dest_rank, TAG_CONTENT3, comm);
-  MPI_Send(all_values.data(), count * 4, MPI_UINT64_T, dest_rank, TAG_CONTENT4, comm);
+  packed.send(dest_rank, comm);
 }
 
 
 void receiveContent(vector<StridedContent> &my_content, int source_rank) {
+  PackedContent packed;
+
   // receive the packed data
-  int count;
-  MPI_Recv(&count, 1, MPI_INT, source_rank, TAG_CONTENT1, comm, MPI_STATUS_IGNORE);
-  uint64_t all_filenames_len;
-  MPI_Recv(&all_filenames_len, 1, MPI_UINT64_T, source_rank, TAG_CONTENT2, comm, MPI_STATUS_IGNORE);
-  vector<char> all_filenames(all_filenames_len);
-  MPI_Recv(all_filenames.data(), all_filenames_len, MPI_BYTE, source_rank, TAG_CONTENT3, comm, MPI_STATUS_IGNORE);
-  vector<uint64_t> all_values(count * 4);
-  MPI_Recv(all_values.data(), count * 4, MPI_UINT64_T, source_rank, TAG_CONTENT4, comm, MPI_STATUS_IGNORE);
+  packed.recv(source_rank, comm);
 
-  // unapck it into my_content
-  my_content.clear();
-  my_content.reserve(count);
-  const char *fn = all_filenames.data();
-  for (int i=0; i < count; i++) {
-    my_content.emplace_back(fn, all_values[i*4], all_values[i*4+1], all_values[i*4+2], all_values[i*4+3]);
-  }
-
+  // unpack it into my_content
+  packed.unpack(my_content);
   // printf("[%d] received %d items\n", rank, (int)my_content.size());
 }
 
@@ -473,9 +513,36 @@ int main(int argc, char **argv) {
       receiveContent(my_content, 0);
     }
       
-      // TODO distribute work to other ranks on this node
   }
 
+  // on each node, distribute work to other ranks on the same node
+  if (rank_on_node == 0) {
+    // distribute StridedContent round-robin to other ranks on this node
+    PackedContent packed;
+    for (int r = 1; r < node_size; r++) {
+      for (size_t i = r; i < my_content.size(); i += node_size)
+        packed.add(my_content[i]);
+      int dest_rank = rank + r;
+      packed.send(dest_rank, comm);
+      packed.clear();
+    }
+
+    // repack my_content to just those left for me
+    size_t write_pos = 1, read_pos = node_size;
+    while (read_pos < my_content.size()) {
+      my_content[write_pos] = my_content[read_pos];
+      write_pos++;
+      read_pos += node_size;
+    }
+    my_content.resize(write_pos);
+    
+  } else {
+    int leader_rank = node_idx * node_size;
+    receiveContent(my_content, leader_rank);
+  }
+
+  printf("[%d] my_content.size() == %d\n", rank, (int)my_content.size());
+  
   /*
   struct timespec ts;
   ts.tv_sec = 0;
@@ -489,6 +556,7 @@ int main(int argc, char **argv) {
   }
   MPI_Barrier(comm);
   */
+
 
   for (int i=0; i < N_TESTS; i++) {
     double timer_single, timer_all, timer_aligned;
