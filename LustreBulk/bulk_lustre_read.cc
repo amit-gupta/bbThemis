@@ -20,6 +20,8 @@
       of the code finishes scanning before starting to read.
 
    Ed Karrels, ed.karrels@gmail.com, January 2023
+
+
 */
 
 
@@ -49,7 +51,7 @@ double t0;
 MPI_Comm comm;
 
 #define BUFFER_SIZE 1048576
-const int N_TESTS = 1;
+const int N_TESTS = 3;
 
 enum Tags {TAG_CONTENT1 = 100, TAG_CONTENT2, TAG_CONTENT3, TAG_CONTENT4};
 
@@ -463,6 +465,7 @@ int main(int argc, char **argv) {
 
   // scan all the input files on rank 0, then distribute work to other ranks
   if (rank == 0) {
+    printf("bulk_lustre_read nodes=%d np=%d rpn=%d\n", node_count, np, node_size);
     printf("[%d] %.6f Scanning files...\n", rank, getTime());
     double scan_timer = MPI_Wtime();
 
@@ -481,7 +484,7 @@ int main(int argc, char **argv) {
     total_mb = (double)total_bytes / (1<<20);
 
     broadcastFileSet(all_files, 0);
-    printf("%ld total bytes\n", (long)total_bytes);
+    printf("total %ld bytes, or %.3f GB\n", (long)total_bytes, (double)total_bytes / (1<<30));
 
     // map the OSTs seen in the file list to nodes in this job
     map<int,int> map_ost_to_node;
@@ -541,7 +544,7 @@ int main(int argc, char **argv) {
     receiveContent(my_content, leader_rank);
   }
 
-  printf("[%d] my_content.size() == %d\n", rank, (int)my_content.size());
+  // printf("[%d] my_content.size() == %d\n", rank, (int)my_content.size());
   
   /*
   struct timespec ts;
@@ -555,8 +558,7 @@ int main(int argc, char **argv) {
     }
   }
   MPI_Barrier(comm);
-  */
-
+*/
 
   for (int i=0; i < N_TESTS; i++) {
     double timer_single, timer_all, timer_aligned;

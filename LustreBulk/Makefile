@@ -13,8 +13,8 @@ LUSTRE_FLAG=-DNO_LUSTRE
 endif
 
 
-OPT = -g
-# OPT = -O3
+# OPT = -g
+OPT = -O3
 CFLAGS = -Wall -D_GNU_SOURCE $(OPT) $(LUSTRE_FLAG)
 CC = gcc $(CFLAGS)
 CXX = g++ -std=c++14 $(CFLAGS)
