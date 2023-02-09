@@ -15,10 +15,20 @@
 
 
 #ifndef NO_LUSTRE
-static struct lov_user_md *allocateParams() {
-  size_t v1_size, v3_size, buf_size;
-  struct lov_user_md *stripe_params;
 
+#define DEFAULT_PARAM_BUF_SIZE 48048
+
+static size_t getStripeParamBufferSize() {
+  size_t v1_size, v3_size, buf_size;
+
+  /* As tested on Frontera on 2023-02-29:
+     LOV_MAX_STRIPE_COUNT = 2000
+     sizeof(struct lov_user_md_v1) = 32
+     sizeof(struct lov_user_md_v3) = 48
+     sizeof(struct lov_user_ost_data_v1) = 24
+     buf_size = 48048
+  */
+  
   v1_size = sizeof(struct lov_user_md_v1) +
     LOV_MAX_STRIPE_COUNT * sizeof(struct lov_user_ost_data_v1);
   v3_size = sizeof(struct lov_user_md_v3) +
@@ -26,63 +36,63 @@ static struct lov_user_md *allocateParams() {
   
   buf_size = (v1_size > v3_size) ? v1_size : v3_size;
 
-  stripe_params = (struct lov_user_md *) calloc(1, buf_size);
-  return stripe_params;
+  /*
+  printf("lustre param size=%d (%d, %d, %d, %d)\n", (int)buf_size,
+         LOV_MAX_STRIPE_COUNT, (int)sizeof(struct lov_user_md_v1),
+         (int)sizeof(struct lov_user_md_v3),
+         (int)sizeof(struct lov_user_ost_data_v1));
+  */
+
+  return buf_size;
 }
 #endif
 
 
-int lustre_get_striping(const char *filename, int *stripe_count,
-                        uint64_t *stripe_size) {
+/* Gets the stripe_count and stripe_size for a file.
+   If ost_idx_array_size is > 0, the indices for each OST across which the
+   file is striped are copied to ost_idx_array[]. ost_idx_array_size is
+   the size of ost_idx_array[], so no more than ost_idx_array_size values
+   will be written. */
+int lustre_get_striping
+(const char *filename, 
+ int *stripe_count,
+ uint64_t *stripe_size,
+ const int ost_idx_array_size,
+ int ost_idx_array[]) {
+
+  assert(stripe_count);
+  assert(stripe_size);
+
 #ifndef NO_LUSTRE
-  int err;
-  struct lov_user_md *stripe_params = allocateParams();
-  if (!stripe_params) {
-    // printf("Failed to allocate buf\n");
-    return ENOMEM;
-  }
+  struct lov_user_md *stripe_params;
 
-  err = llapi_file_get_stripe(filename, stripe_params);
-  if (err) {
-    // printf("llapi_file_get_stripe failed: %s\n", strerror(errno));
-    return errno;
-  }
-  
-  *stripe_count = stripe_params->lmm_stripe_count;
-  *stripe_size = stripe_params->lmm_stripe_size;
-  free(stripe_params);
-
-  return 0;
-#else
-  struct stat s;
-  if (stat(filename, &s)) {
-    return errno;
+  // try to avoid a dynamic allocation
+  char param_buf[DEFAULT_PARAM_BUF_SIZE];
+  size_t param_buf_size = getStripeParamBufferSize();
+  if (DEFAULT_PARAM_BUF_SIZE >= param_buf_size) {
+    stripe_params = (struct lov_user_md*) param_buf;
   } else {
-    /* return common dummy values */
-    *stripe_count = 1;
-    *stripe_size = 1<<20;
-    return 0;
+    stripe_params = calloc(1, param_buf_size);
+    if (!stripe_params) {
+      return ENOMEM;
+    }
   }
-#endif /* NO_LUSTRE */
-}
-
-
-int lustre_get_striping_details(const char *filename, 
-                                int array_size,
-                                int *ost_idx_array) {
-
-#ifndef NO_LUSTRE
-  struct lov_user_md *stripe_params = allocateParams();
-
-  if (!stripe_params)
-    return ENOMEM;
 
   int err = llapi_file_get_stripe(filename, stripe_params);
-  if (err)
+  if (err) {
+    if ((char*)stripe_params != param_buf) {
+      free(stripe_params);
+    }
     return errno;
+  }
 
-  int count = stripe_params->lmm_stripe_count;
-  if (count > array_size) return EINVAL;
+  *stripe_count = stripe_params->lmm_stripe_count;
+  *stripe_size = stripe_params->lmm_stripe_size;
+
+  int count = (*stripe_count < ost_idx_array_size)
+    ? *stripe_count
+    : ost_idx_array_size;
+  if (ost_idx_array_size > 0) assert(ost_idx_array);
 
   /* printf("lustre_get_striping_details %s\n", filename); */
   const struct lov_user_ost_data_v1 *ost = stripe_params->lmm_objects;
@@ -91,14 +101,20 @@ int lustre_get_striping_details(const char *filename,
     /* printf("  ost %d = %d\n", i, ost[i].l_ost_idx); */
   }
 
-  free(stripe_params);
+  if ((char*)stripe_params != param_buf) {
+    free(stripe_params);
+  }
 
   return 0;
 
 #else
 
-  if (array_size > 0)
+  *stripe_count = 1;
+  *stripe_size = 1<<20;
+  if (ost_idx_array_size > 0) {
+    assert(ost_idx_array);
     ost_idx_array[0] = 0;
+  }
   return 0;
 
 #endif /* NO_LUSTRE */

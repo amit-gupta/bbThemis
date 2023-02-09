@@ -11,6 +11,7 @@
 #include "lustre_scan_files.hh"
 #include "canonical_path.hh"
 
+const int MAX_STRIPE_COUNT = 256;
 
 using std::vector;
 using std::string;
@@ -33,23 +34,24 @@ static void scanFile(const char *filename, const struct stat *stat_buf) {
   
   global_file_count++;
   // printf("Scanning file %s\n", filename);
-  
-  err = lustre_get_striping(filename, &stripe_count, &stripe_size);
+
+  vector<int> osts(MAX_STRIPE_COUNT);
+  err = lustre_get_striping(filename, &stripe_count, &stripe_size,
+                            osts.size(), osts.data());
   if (err) {
     fprintf(stderr, "Error %d in lustre_get_striping(%s): %s\n",
             err, filename, strerror(err));
     return;
   }
 
-  // printf("  count=%d size=%ld, osts={", stripe_count, (long)stripe_size);
-
-  vector<int> osts(stripe_count);
-  err = lustre_get_striping_details(filename, osts.size(), osts.data());
-  if (err) {
-    fprintf(stderr, "Error %d in lustre_get_striping_details(%s): %s\n",
-            err, filename, strerror(err));
-    return;
+  if (stripe_count > (int)osts.size()) {
+    fprintf(stderr, "%s has %d stripes, but expected max is %d\n",
+            filename, stripe_count, (int)osts.size());
   }
+  // shrink to fit
+  osts.resize(stripe_count);
+
+  // printf("  count=%d size=%ld, osts={", stripe_count, (long)stripe_size);
 
   StridedContent content(filename, 0, stripe_size, stripe_size * stripe_count,
                          stat_buf->st_size);
