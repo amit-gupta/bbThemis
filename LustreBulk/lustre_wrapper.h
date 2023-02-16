@@ -38,6 +38,12 @@ extern "C" {
 
 
 /* Reads the Lustre stripe count and size of a file.
+
+   If ost_idx_array_size is > 0, the indices for each OST across which the
+   file is striped are copied to ost_idx_array[]. ost_idx_array_size is
+   the size of ost_idx_array[], so no more than ost_idx_array_size values
+   will be written.
+
    Returns 0 on success, otherwise one of:
      ENOMEM         failed to allocate memory.
      ENAMETOOLONG   path was too long.
@@ -45,20 +51,16 @@ extern "C" {
      ENOTTY         path does not point to a Lustre filesystem.
      EFAULT         memory region pointed by lum is not properly mapped.
 */
-int lustre_get_striping(const char *filename,
-                        int *stripe_count,
-                        uint64_t *stripe_size);
+int lustre_get_striping
+(const char *filename, 
+ int *stripe_count,
+ uint64_t *stripe_size,
+ const int ost_idx_array_size,
+ int ost_idx_array[]);
 
-/* Gets the OST index of each stripe for this file, copying them to
-   ost_idx_array.  array_size is the size of ost_idx_array. Returns
-   EINVAL if array_size is less than the stripe count, 0 on success,
-   or one of the error values lustre_get_striping on other errors.
-*/
-int lustre_get_striping_details(const char *filename,
-                                int array_size,
-                                int *ost_idx_array);
 
-/* stripe_size must be a multiple of 65536 and less than or equal to 2^64
+/* Creates a file with the given striping parameters.
+   stripe_size must be a multiple of 65536 and less than or equal to 2^64
 
    Warning: Lustre seems to ignore the mode argument, always creating file
    with mode 0600, even when using open().
@@ -68,18 +70,24 @@ int lustre_get_striping_details(const char *filename,
      EEXIST    File already exists.
      ENOTTY    name may not point to a Lustre filesystem.
 */
-int lustre_create_striped(const char *filename,
-                          mode_t mode,
-                          int stripe_count,
-                          uint64_t stripe_size,
-                          int stripe_offset /* default -1 */ );
+int lustre_create_striped
+(const char *filename,
+ mode_t mode,
+ int stripe_count,
+ uint64_t stripe_size,
+ int stripe_offset /* default -1 */ );
+
   
 /* Just like lustre_create_striped() except the file is kept open and
    the file descriptor is returned or -1 on error. */
-int lustre_create_striped_open(const char *filename, mode_t mode,
-                               int stripe_count,
-                               uint64_t stripe_size, int stripe_offset);
+int lustre_create_striped_open
+(const char *filename, 
+ mode_t mode,
+ int stripe_count,
+ uint64_t stripe_size, 
+ int stripe_offset);
 
+  
 #ifdef __cplusplus
 }
 #endif
