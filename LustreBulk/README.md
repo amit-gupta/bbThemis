@@ -88,13 +88,6 @@ Test 2
 The throughput is far better because the naive methods read the file serially, while the aligned access method reads the file in parallel.
 I'm pretty sure the measured throughput exceeds the capability of the interconnect hardware, so the data must be cached locally.
 
-## TODO
-
-- Add write mode. This should benefit from the reduced contention of aligned accesses. This will also require some experimentation on choosing good striping parameters as a function of the file size. Are there different optimal values for reading and writing?
-- Test on Frontera $SCRATCH
-- Try out these strategies on a BeeGFS file system
-
-
 # Write mode
 
 I ran a series of tests on Frontera and its $SCRATCH file system on a bunch of small files and a few large files.
@@ -124,4 +117,9 @@ The results below are the fastest of the three runs.
   All ranks writing        962
   Aligned writes          5693
 ```
+
+## TODO
+
+- Run some experiments to choose good striping parameters as a function of the file size. Are there different optimal values for reading and writing?
+- Try out these strategies on a BeeGFS file system
 
