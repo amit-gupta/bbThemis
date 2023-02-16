@@ -51,12 +51,22 @@ double t0;
 MPI_Comm comm;
 
 #define BUFFER_SIZE 1048576
-const int N_TESTS = 3;
 
 enum Tags {TAG_CONTENT1 = 100, TAG_CONTENT2, TAG_CONTENT3, TAG_CONTENT4};
 
+enum class Direction {READ, WRITE};
+
+
 struct Options {
   vector<string> file_list;
+  int test_count;
+  Direction direction;
+  bool enable_single_rank_test;
+
+  Options() : 
+    test_count(3),
+    direction(Direction::READ),
+    enable_single_rank_test(false) {}
 
   bool parseArgs(int argc, char **argv);
 };
@@ -131,15 +141,39 @@ private:
 };  
 
 
+void printHelp() {
+  if (rank==0) {
+    printf("\n  bulk_lustre_read read|write <files/directories...>\n\n");
+  }
+}
+
+
 double getTime() {
   return MPI_Wtime() - t0;
 }
 
 
 bool Options::parseArgs(int argc, char **argv) {
-  // no options yet
+  int argno = 1;
+  const char *arg;
 
-  file_list.insert(file_list.end(), argv + 1, argv + argc);
+  if (argc < 3) {
+    printHelp();
+    return false;
+  }
+
+  arg = argv[argno++];
+  if (!strcmp(arg, "read")) {
+    direction = Direction::READ;
+  } else if (!strcmp(arg, "write")) {
+    direction = Direction::WRITE;
+  } else {
+    if (rank==0) {
+      fprintf(stderr, "Error direction \"%s\" unrecognized.\n", arg);
+    }
+  }
+
+  file_list.insert(file_list.end(), argv + argno, argv + argc);
 
   return true;
 }
@@ -325,52 +359,119 @@ void printContentList(const vector<StridedContent> &my_content) {
 }
 
 
-// return number of bytes read
-uint64_t readFile(const char *filename) {
+/*
+  Returns number of bytes read
+  Adds the time spent in open() and close() to metadata_sec (add to it, not overwrite)
+  Adds time spend in read() to read_sec.
+*/
+uint64_t readFile(const char *filename, double &metadata_sec, double &read_sec) {
   char buffer[BUFFER_SIZE];
   uint64_t file_size = 0;
+  double timer;
   
+  timer = MPI_Wtime();
   int fd = open(filename, O_RDONLY);
+  metadata_sec += MPI_Wtime() - timer;
   if (fd < 0) {
     fprintf(stderr, "[%d] failed to open %s for reading\n", rank, filename);
     return 0;
   }
 
+  timer = MPI_Wtime();
   while (true) {
     ssize_t bytes_read = read(fd, buffer, BUFFER_SIZE);
     if (bytes_read <= 0) break;
     file_size += bytes_read;
   }
+  read_sec += MPI_Wtime() - timer;
 
+  timer = MPI_Wtime();
   close(fd);
+  metadata_sec += MPI_Wtime() - timer;
+
   return file_size;
+}
+
+
+/*
+  Writes (size) bytes to filename.
+  Adds the time spent in open() and close() to metadata_sec (add to it, not overwrite)
+  Adds time spend in write() to write_sec.
+  Returns the number of bytes written.
+*/
+long writeFile(const char *filename, const long size,
+               double &metadata_sec, double &write_sec) {
+  char buffer[BUFFER_SIZE] = {0};
+  double timer;
+  
+  timer = MPI_Wtime();
+  int fd = open(filename, O_CREAT | O_WRONLY);
+  metadata_sec += MPI_Wtime() - timer;
+  if (fd < 0) {
+    fprintf(stderr, "[%d] failed to open %s for writing\n", rank, filename);
+    return 0;
+  }
+
+  long total_bytes_written = 0;
+  timer = MPI_Wtime();
+  while (total_bytes_written < size) {
+    int write_len = std::min(size - total_bytes_written, (long)BUFFER_SIZE);
+    ssize_t bytes_written = write(fd, buffer, write_len);
+    if (bytes_written < 0) {
+      fprintf(stderr, "[%d] error %d writing to %s: %s\n", rank, errno, filename, strerror(errno));
+      return total_bytes_written;
+    }
+    total_bytes_written += write_len;
+  }
+  write_sec += MPI_Wtime() - timer;
+
+  timer = MPI_Wtime();
+  close(fd);
+  metadata_sec += MPI_Wtime() - timer;
+
+  return total_bytes_written;
 }
   
   
 // returns total bytes read
-long singleReader(const FileSet &all_files) {
+long singleReader(const FileSet &all_files, double &metadata_sec, double &read_sec) {
   long total_bytes_read = 0;
+  int count = 0;
+  metadata_sec = 0;
+  read_sec = 0;
   
   for (auto &f : all_files) {
     const char *filename = f.first.c_str();
     long file_size = f.second;
 
-    long bytes_read = readFile(filename);
+    long bytes_read = readFile(filename, metadata_sec, read_sec);
     if (bytes_read != file_size) {
       printf("[%d] expected %s to be %ld bytes, got %ld\n", rank, filename, (long) file_size, bytes_read);
     }
-
+    /*    
+    if (++count % 100 == 0)
+       printf("  %.6f %d files read...\n", getTime(), count);
+    */
     total_bytes_read += bytes_read;
   }
+  // printf("  %.6f %d files read.\n", getTime(), count);
+
+  /*
+  double total_time = metadata_sec + read_sec;
+  printf("  singleReader metadata time %.6fs (%.0f%%), read time %.6fs (%.0f%%)\n",
+         metadata_sec, 100.0 * metadata_sec / total_time,
+         read_sec, 100.0 * read_sec / total_time);
+  */
 
   return total_bytes_read;
 }
 
 
 /* Collective call. Only read 1 in np files. */
-long allRanksRead(const FileSet &all_files) {
+long allRanksRead(const FileSet &all_files, double &meta_sec, double &data_sec) {
   long total_bytes_read = 0;
   int m = 0;
+  meta_sec = data_sec = 0;
   for (auto &f : all_files) {
     if (m == rank) {
       const char *filename = f.first.c_str();
@@ -378,7 +479,7 @@ long allRanksRead(const FileSet &all_files) {
 
       // printf("[%d] read %s\n", rank, filename);
       
-      long bytes_read = readFile(filename);
+      long bytes_read = readFile(filename, meta_sec, data_sec);
       if (bytes_read != file_size) {
         printf("[%d] expected %s to be %ld bytes, got %ld\n", rank, filename, (long) file_size, bytes_read);
       }
@@ -390,28 +491,37 @@ long allRanksRead(const FileSet &all_files) {
 
   if (rank==0) {
     MPI_Reduce(MPI_IN_PLACE, &total_bytes_read, 1, MPI_LONG, MPI_SUM, 0, comm);
+    MPI_Reduce(MPI_IN_PLACE, &meta_sec, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+    MPI_Reduce(MPI_IN_PLACE, &data_sec, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
   } else {
     MPI_Reduce(&total_bytes_read, 0, 1, MPI_LONG, MPI_SUM, 0, comm);
+    MPI_Reduce(&meta_sec, 0, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+    MPI_Reduce(&data_sec, 0, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
   }
     
   return total_bytes_read;
 }
 
 
-long alignedRead(const vector<StridedContent> &content_list) {
+long alignedRead(const vector<StridedContent> &content_list, double &meta_sec, double &data_sec) {
 
   vector<char> buf;
   long total_bytes_read = 0;
+  meta_sec = data_sec = 0;
+  double timer;
 
   for (const StridedContent &sc : content_list) {
     const char *filename = sc.file_name.c_str();
+    timer = MPI_Wtime();
     int fd = open(filename, O_RDONLY);
+    meta_sec += MPI_Wtime() - timer;
     if (fd < 0) {
       fprintf(stderr, "[%d] failed to open %s for reading\n", rank, filename);
       continue;
     }
 
     buf.resize(sc.length);
+    timer = MPI_Wtime();
     uint64_t pos = sc.offset;
     while (pos < sc.file_size) {
       int read_len = std::min(sc.length, sc.file_size - pos);
@@ -424,17 +534,140 @@ long alignedRead(const vector<StridedContent> &content_list) {
       total_bytes_read += bytes_read;
       pos += sc.stride;
     }
+    data_sec += MPI_Wtime() - timer;
+
+    timer = MPI_Wtime();
     close(fd);
+    meta_sec += MPI_Wtime() - timer;
   }
   
   if (rank==0) {
     MPI_Reduce(MPI_IN_PLACE, &total_bytes_read, 1, MPI_LONG, MPI_SUM, 0, comm);
+    MPI_Reduce(MPI_IN_PLACE, &meta_sec, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+    MPI_Reduce(MPI_IN_PLACE, &data_sec, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
   } else {
     MPI_Reduce(&total_bytes_read, 0, 1, MPI_LONG, MPI_SUM, 0, comm);
+    MPI_Reduce(&meta_sec, 0, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+    MPI_Reduce(&data_sec, 0, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
   }
     
   return total_bytes_read;
 
+}
+
+
+// returns total bytes written
+long singleWriter(const FileSet &all_files, double &metadata_sec, double &write_sec) {
+  long total_bytes_written = 0;
+  int count = 0;
+  metadata_sec = 0;
+  write_sec = 0;
+  
+  for (auto &f : all_files) {
+    const char *filename = f.first.c_str();
+    long file_size = f.second;
+
+    total_bytes_written += writeFile(filename, file_size, metadata_sec, write_sec);
+    /*
+    if (++count % 100 == 0)
+       printf("  %.6f %d files written...\n", getTime(), count);
+    */
+  }
+  // printf("  %.6f %d files written.\n", getTime(), count);
+
+  /*
+  double total_time = metadata_sec + write_sec;
+  printf("  singleWriter metadata time %.6fs (%.0f%%), write time %.6fs (%.0f%%)\n",
+         metadata_sec, 100.0 * metadata_sec / total_time,
+         write_sec, 100.0 * write_sec / total_time);
+  */
+
+  return total_bytes_written;
+}
+
+
+/* Collective call. Only write 1 in np files. */
+long allRanksWrite(const FileSet &all_files, double &meta_sec, double &data_sec) {
+  long total_bytes_written = 0;
+  int m = 0;
+  meta_sec = 0;
+  data_sec = 0;
+
+  for (auto &f : all_files) {
+    if (m == rank) {
+      const char *filename = f.first.c_str();
+      long file_size = f.second;
+
+      // printf("[%d] read %s\n", rank, filename);
+      
+      total_bytes_written += writeFile(filename, file_size, meta_sec, data_sec);
+    }
+    
+    if (++m == np) m = 0;
+  }
+
+  if (rank==0) {
+    MPI_Reduce(MPI_IN_PLACE, &total_bytes_written, 1, MPI_LONG, MPI_SUM, 0, comm);
+    MPI_Reduce(MPI_IN_PLACE, &meta_sec, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+    MPI_Reduce(MPI_IN_PLACE, &data_sec, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+  } else {
+    MPI_Reduce(&total_bytes_written, 0, 1, MPI_LONG, MPI_SUM, 0, comm);
+    MPI_Reduce(&meta_sec, 0, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+    MPI_Reduce(&data_sec, 0, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+  }
+    
+  return total_bytes_written;
+}
+
+
+long alignedWrite(const vector<StridedContent> &content_list, double &meta_sec, double &data_sec) {
+
+  vector<char> buf;
+  long total_bytes_written = 0;
+  meta_sec = data_sec = 0;
+  double timer;
+
+  for (const StridedContent &sc : content_list) {
+    const char *filename = sc.file_name.c_str();
+    timer = MPI_Wtime();
+    int fd = open(filename, O_CREAT | O_WRONLY);
+    meta_sec += MPI_Wtime() - timer;
+    if (fd < 0) {
+      fprintf(stderr, "[%d] failed to open %s for reading\n", rank, filename);
+      continue;
+    }
+
+    buf.resize(sc.length);
+    uint64_t pos = sc.offset;
+    timer = MPI_Wtime();
+    while (pos < sc.file_size) {
+      int write_len = std::min(sc.length, sc.file_size - pos);
+      ssize_t bytes_written = pwrite(fd, buf.data(), write_len, pos);
+      if (bytes_written < 0) {
+        fprintf(stderr, "[%d] error %d writing to %s at %ld: %s\n", rank, errno, filename, (long)pos, strerror(errno));
+        break;
+      }
+      total_bytes_written += bytes_written;
+      pos += sc.stride;
+    }
+    data_sec += MPI_Wtime() - timer;
+
+    timer = MPI_Wtime();
+    close(fd);
+    meta_sec += MPI_Wtime() - timer;
+  }
+  
+  if (rank==0) {
+    MPI_Reduce(MPI_IN_PLACE, &total_bytes_written, 1, MPI_LONG, MPI_SUM, 0, comm);
+    MPI_Reduce(MPI_IN_PLACE, &meta_sec, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+    MPI_Reduce(MPI_IN_PLACE, &data_sec, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+  } else {
+    MPI_Reduce(&total_bytes_written, 0, 1, MPI_LONG, MPI_SUM, 0, comm);
+    MPI_Reduce(&meta_sec, 0, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+    MPI_Reduce(&data_sec, 0, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+  }
+    
+  return total_bytes_written;
 }
 
 
@@ -560,48 +793,108 @@ int main(int argc, char **argv) {
   MPI_Barrier(comm);
 */
 
-  for (int i=0; i < N_TESTS; i++) {
+  double meta_sec, data_sec;
+
+  // read
+  if (rank==0) printf("\nread tests\n\n");
+  for (int i=0; i < opt.test_count; i++) {
     double timer_single, timer_all, timer_aligned;
     uint64_t bytes_read;
 
-    // single reader
-    if (rank == 0) {
-      timer_single = MPI_Wtime();
-      bytes_read = singleReader(all_files);
-      if (bytes_read != total_bytes) {
-        printf("[%d] ERROR singleReader read %ld of %ld bytes\n", rank, (long)bytes_read, (long)total_bytes);
-      }
-      timer_single = MPI_Wtime() - timer_single;
-    }
-
-    // all ranks read, selecting their files round-robin from all_files
-    MPI_Barrier(comm);
-    timer_all = MPI_Wtime();
-    bytes_read = allRanksRead(all_files);
-    MPI_Barrier(comm);
-    timer_all = MPI_Wtime() - timer_all;
-    if (rank==0) {
-      if (bytes_read != total_bytes) {
-        printf("[%d] ERROR allRanksRead read %ld of %ld bytes\n", rank, (long)bytes_read, (long)total_bytes);
-      }
-    }
+    if (rank==0) printf("Test %d\n", i);
 
     // aligned read
     timer_aligned = MPI_Wtime();
-    bytes_read = alignedRead(my_content);
+    bytes_read = alignedRead(my_content, meta_sec, data_sec);
     MPI_Barrier(comm);
     timer_aligned = MPI_Wtime() - timer_aligned;
     if (rank==0) {
       if (bytes_read != total_bytes) {
         printf("[%d] ERROR alignedRead read %ld of %ld bytes\n", rank, (long)bytes_read, (long)total_bytes);
       }
+      printf("  aligned readers: %.6fs, %.3f mb/s (%.1f%% metadata time)\n", timer_aligned, total_mb / timer_aligned,
+             100.0 * meta_sec / (meta_sec + data_sec));
     }
 
-    if (rank == 0) {
+    // all ranks read, selecting their files round-robin from all_files
+    MPI_Barrier(comm);
+    timer_all = MPI_Wtime();
+    bytes_read = allRanksRead(all_files, meta_sec, data_sec);
+    MPI_Barrier(comm);
+    timer_all = MPI_Wtime() - timer_all;
+    if (rank==0) {
+      if (bytes_read != total_bytes) {
+        printf("[%d] ERROR allRanksRead read %ld of %ld bytes\n", rank, (long)bytes_read, (long)total_bytes);
+      }
+      printf("  all ranks read: %.6fs, %.3f mb/s (%.1f%% metadata time)\n", timer_all, total_mb / timer_all,
+             100.0 * meta_sec / (meta_sec + data_sec));
+    }
+
+    // single reader
+    if (opt.enable_single_rank_test) {
+      if (rank == 0) {
+        timer_single = MPI_Wtime();
+        bytes_read = singleReader(all_files, meta_sec, data_sec);
+        if (bytes_read != total_bytes) {
+          printf("[%d] ERROR singleReader read %ld of %ld bytes\n", rank, (long)bytes_read, (long)total_bytes);
+        }
+        timer_single = MPI_Wtime() - timer_single;
+
+        printf("  single reader: %.6fs, %.3f mb/s (%.1f%% metadata time)\n", timer_single, total_mb / timer_single,
+               100.0 * meta_sec / (meta_sec + data_sec));
+      }
+    }
+  }
+
+
+  // write
+  if (rank==0) printf("\n\nwrite tests\n\n");
+  for (int i=0; i < opt.test_count; i++) {
+    double timer_single, timer_all, timer_aligned;
+    long bytes_written;
+
+    if (rank == 0)
       printf("Test %d\n", i);
-      printf("  single reader: %.6fs, %.3f mb/s\n", timer_single, total_mb / timer_single);
-      printf("  all ranks read: %.6fs, %.3f mb/s\n", timer_all, total_mb / timer_all);
-      printf("  aligned readers: %.6fs, %.3f mb/s\n", timer_aligned, total_mb / timer_aligned);
+
+    // aligned write
+    timer_aligned = MPI_Wtime();
+    bytes_written = alignedWrite(my_content, meta_sec, data_sec);
+    MPI_Barrier(comm);
+    timer_aligned = MPI_Wtime() - timer_aligned;
+    if (rank==0) {
+      if (bytes_written != total_bytes) {
+        printf("[%d] ERROR alignedWrite wrote %ld of %ld bytes\n", rank, bytes_written, (long)total_bytes);
+      }
+      printf("  aligned writers: %.6fs, %.3f mb/s (%.1f%% metadata time)\n", timer_aligned, total_mb / timer_aligned,
+             100.0 * meta_sec / (meta_sec + data_sec));
+    }
+
+    // all ranks write, selecting their files round-robin from all_files
+    MPI_Barrier(comm);
+    timer_all = MPI_Wtime();
+    bytes_written = allRanksWrite(all_files, meta_sec, data_sec);
+    MPI_Barrier(comm);
+    timer_all = MPI_Wtime() - timer_all;
+    if (rank==0) {
+      if (bytes_written != total_bytes) {
+        printf("[%d] ERROR allRanksWrite wrote %ld of %ld bytes\n", rank, bytes_written, (long)total_bytes);
+      }
+      printf("  all ranks write: %.6fs, %.3f mb/s (%.1f%% metadata time)\n", timer_all, total_mb / timer_all,
+             100.0 * meta_sec / (meta_sec + data_sec));
+    }
+
+    // single writer
+    if (opt.enable_single_rank_test) {
+      if (rank == 0) {
+        timer_single = MPI_Wtime();
+        bytes_written = singleWriter(all_files, meta_sec, data_sec);
+        if (bytes_written != total_bytes) {
+          printf("[%d] ERROR singleWriter wrote %ld of %ld bytes\n", rank, bytes_written, (long)total_bytes);
+        }
+        timer_single = MPI_Wtime() - timer_single;
+        printf("  single write: %.6fs, %.3f mb/s (%.1f%% metadata time)\n", timer_single, total_mb / timer_single,
+               100.0 * meta_sec / (meta_sec + data_sec));
+      }
     }
   }
 

@@ -1,0 +1,830 @@
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=4 ibrun -n 4 ./bulk_lustre_read read $SCRATCH/read_test.size=1m.sc=1.sl=1m.count=100
+TACC:  Starting up job 5211376 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=1 np=4 rpn=4
+[0] 0.000203 Scanning files...
+[0] 0.060931 100 files scanned in 0.060722s
+total 104857600 bytes, or 0.098 GB
+
+read tests
+
+Test 0
+  single reader: 2.764448s, 36.174 mb/s (0.6% metadata time)
+  all ranks read: 0.012097s, 8266.794 mb/s (39.8% metadata time)
+  aligned readers: 0.010389s, 9625.249 mb/s (44.1% metadata time)
+Test 1
+  single reader: 0.033193s, 3012.711 mb/s (43.7% metadata time)
+  all ranks read: 0.009512s, 10512.484 mb/s (49.1% metadata time)
+  aligned readers: 0.009657s, 10355.307 mb/s (47.5% metadata time)
+Test 2
+  single reader: 0.032235s, 3102.202 mb/s (44.4% metadata time)
+  all ranks read: 0.009303s, 10749.002 mb/s (50.2% metadata time)
+  aligned readers: 0.008918s, 11213.257 mb/s (49.3% metadata time)
+
+
+write tests
+
+Test 0
+  single write: 0.158186s, 632.169 mb/s (14.6% metadata time)
+  all ranks write: 0.023953s, 4174.791 mb/s (29.6% metadata time)
+  aligned writers: 0.020874s, 4790.549 mb/s (32.5% metadata time)
+Test 1
+  single write: 0.071021s, 1408.042 mb/s (32.8% metadata time)
+  all ranks write: 0.022354s, 4473.400 mb/s (32.8% metadata time)
+  aligned writers: 0.020633s, 4846.554 mb/s (33.1% metadata time)
+Test 2
+  single write: 0.071204s, 1404.424 mb/s (32.3% metadata time)
+  all ranks write: 0.022238s, 4496.779 mb/s (32.9% metadata time)
+  aligned writers: 0.020548s, 4866.630 mb/s (33.0% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=4 ibrun -n 4 ./bulk_lustre_read read $SCRATCH/read_test.size=1m.sc=1.sl=1m.count=1000
+TACC:  Starting up job 5211376 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=1 np=4 rpn=4
+[0] 0.000232 Scanning files...
+[0] 0.394604 1000 files scanned in 0.394365s
+total 1048576000 bytes, or 0.977 GB
+
+read tests
+
+Test 0
+  single reader: 23.597274s, 42.378 mb/s (0.7% metadata time)
+  all ranks read: 0.111521s, 8966.904 mb/s (41.2% metadata time)
+  aligned readers: 0.097000s, 10309.257 mb/s (46.7% metadata time)
+Test 1
+  single reader: 0.328399s, 3045.080 mb/s (43.4% metadata time)
+  all ranks read: 0.097194s, 10288.698 mb/s (49.1% metadata time)
+  aligned readers: 0.096015s, 10414.995 mb/s (47.7% metadata time)
+Test 2
+  single reader: 0.331580s, 3015.867 mb/s (43.2% metadata time)
+  all ranks read: 0.096364s, 10377.304 mb/s (48.8% metadata time)
+  aligned readers: 0.094838s, 10544.309 mb/s (47.6% metadata time)
+
+
+write tests
+
+Test 0
+  single write: 1.542504s, 648.297 mb/s (15.9% metadata time)
+  all ranks write: 0.232730s, 4296.823 mb/s (31.2% metadata time)
+  aligned writers: 0.210685s, 4746.433 mb/s (33.3% metadata time)
+Test 1
+  single write: 0.684555s, 1460.802 mb/s (35.9% metadata time)
+  all ranks write: 0.217153s, 4605.039 mb/s (34.0% metadata time)
+  aligned writers: 0.210625s, 4747.763 mb/s (33.8% metadata time)
+Test 2
+  single write: 0.691565s, 1445.996 mb/s (36.9% metadata time)
+  all ranks write: 0.215987s, 4629.899 mb/s (33.8% metadata time)
+  aligned writers: 0.209252s, 4778.937 mb/s (33.1% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=4 ibrun -n 4 ./bulk_lustre_read read $SCRATCH/read_test.size=1m.sc=1.sl=1m.count=10000
+TACC:  Starting up job 5211376 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=1 np=4 rpn=4
+[0] 0.000226 Scanning files...
+[0] 4.635371 10000 files scanned in 4.635140s
+total 10485760000 bytes, or 9.766 GB
+
+read tests
+
+Test 0
+  single reader: 243.576333s, 41.055 mb/s (0.7% metadata time)
+  all ranks read: 1.095707s, 9126.528 mb/s (42.1% metadata time)
+  aligned readers: 0.964102s, 10372.350 mb/s (47.3% metadata time)
+Test 1
+  single reader: 3.265832s, 3062.006 mb/s (43.9% metadata time)
+  all ranks read: 0.961919s, 10395.882 mb/s (49.0% metadata time)
+  aligned readers: 0.954471s, 10477.011 mb/s (47.9% metadata time)
+Test 2
+  single reader: 3.258727s, 3068.683 mb/s (44.1% metadata time)
+  all ranks read: 0.964835s, 10364.463 mb/s (49.2% metadata time)
+  aligned readers: 0.959222s, 10425.116 mb/s (48.0% metadata time)
+
+
+write tests
+
+Test 0
+  single write: 16.850229s, 593.464 mb/s (20.3% metadata time)
+  all ranks write: 2.638688s, 3789.762 mb/s (32.3% metadata time)
+  aligned writers: 2.228556s, 4487.210 mb/s (38.0% metadata time)
+Test 1
+  single write: 7.665211s, 1304.595 mb/s (44.7% metadata time)
+  all ranks write: 2.239228s, 4465.825 mb/s (38.5% metadata time)
+  aligned writers: 2.192249s, 4561.525 mb/s (37.2% metadata time)
+Test 2
+  single write: 7.631313s, 1310.390 mb/s (44.5% metadata time)
+  all ranks write: 2.241123s, 4462.049 mb/s (38.2% metadata time)
+  aligned writers: 2.342223s, 4269.448 mb/s (38.0% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ make
+mpicxx -std=c++14 -Wall -D_GNU_SOURCE -O3 -DHAVE_LUSTRE bulk_lustre_read.cc lustre_scan_files.o lustre_wrapper.o canonical_path.o -llustreapi -o bulk_lustre_read
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=4 ibrun -n 4 ./bulk_lustre_read read $SCRATCH/read_test.size=1m.sc=1.sl=1m.count=10000
+TACC:  Starting up job 5211376 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=1 np=4 rpn=4
+[0] 0.000202 Scanning files...
+[0] 0.863789 10000 files scanned in 0.863582s
+total 10485760000 bytes, or 9.766 GB
+
+read tests
+
+Test 0
+  aligned readers: 0.971405s, 10294.373 mb/s (50.5% metadata time)
+  all ranks read: 0.974633s, 10260.271 mb/s (46.5% metadata time)
+  single reader: 3.434607s, 2911.541 mb/s (43.4% metadata time)
+Test 1
+  aligned readers: 0.719480s, 13898.920 mb/s (48.5% metadata time)
+  all ranks read: 0.972828s, 10279.313 mb/s (48.7% metadata time)
+  single reader: 3.445862s, 2902.032 mb/s (43.5% metadata time)
+Test 2
+  aligned readers: 0.739717s, 13518.690 mb/s (48.5% metadata time)
+  all ranks read: 0.974875s, 10257.730 mb/s (48.9% metadata time)
+  single reader: 3.732971s, 2678.831 mb/s (53.5% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 2.124635s, 4706.691 mb/s (32.3% metadata time)
+  all ranks write: 2.599080s, 3847.516 mb/s (36.7% metadata time)
+  single write: 7.877882s, 1269.377 mb/s (42.0% metadata time)
+Test 1
+  aligned writers: 1.862368s, 5369.509 mb/s (37.1% metadata time)
+  all ranks write: 2.274642s, 4396.296 mb/s (38.4% metadata time)
+  single write: 7.864656s, 1271.511 mb/s (44.2% metadata time)
+Test 2
+  aligned writers: 1.884092s, 5307.597 mb/s (38.4% metadata time)
+  all ranks write: 2.231198s, 4481.898 mb/s (38.6% metadata time)
+  single write: 8.518228s, 1173.953 mb/s (39.9% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=4 ibrun -n 4 ./bulk_lustre_read read $SCRATCH/read_test.size=1g.sc=4.sl=1m.count=40
+TACC:  Starting up job 5211376 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=1 np=4 rpn=4
+[0] 0.000222 Scanning files...
+[0] 0.156459 40 files scanned in 0.156232s
+total 42949672960 bytes, or 40.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 12.771511s, 3207.138 mb/s (0.1% metadata time)
+  all ranks read: 2.390608s, 17133.718 mb/s (0.1% metadata time)
+  single reader: 7.018736s, 5835.809 mb/s (0.2% metadata time)
+Test 1
+  aligned readers: 1.454666s, 28157.663 mb/s (0.4% metadata time)
+  all ranks read: 2.019455s, 20282.700 mb/s (0.1% metadata time)
+  single reader: 6.999046s, 5852.227 mb/s (0.1% metadata time)
+Test 2
+  aligned readers: 1.503586s, 27241.537 mb/s (0.4% metadata time)
+  all ranks read: 2.019540s, 20281.848 mb/s (0.1% metadata time)
+  single reader: 8.264596s, 4956.080 mb/s (0.1% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 11.702875s, 3499.995 mb/s (0.1% metadata time)
+  all ranks write: 7.952122s, 5150.827 mb/s (0.0% metadata time)
+  single write: 27.382826s, 1495.828 mb/s (0.1% metadata time)
+Test 1
+  aligned writers: 5.773651s, 7094.297 mb/s (0.2% metadata time)
+  all ranks write: 7.721742s, 5304.503 mb/s (0.1% metadata time)
+  single write: 27.167169s, 1507.702 mb/s (0.1% metadata time)
+Test 2
+  aligned writers: 5.591243s, 7325.741 mb/s (0.2% metadata time)
+  all ranks write: 7.666894s, 5342.451 mb/s (0.1% metadata time)
+  single write: 25.966796s, 1577.399 mb/s (0.1% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=4 ibrun -n 4 ./bulk_lustre_read read $SCRATCH/read_test.size=100g.sc=16.sl=16m.count=1
+TACC:  Starting up job 5211376 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=1 np=4 rpn=4
+[0] 0.000171 Scanning files...
+[0] 0.001262 1 files scanned in 0.001085s
+total 107374182400 bytes, or 100.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 34.154165s, 2998.170 mb/s (0.0% metadata time)
+  all ranks read: 60.274057s, 1698.907 mb/s (0.0% metadata time)
+  single reader: 57.485026s, 1781.333 mb/s (0.0% metadata time)
+Test 1
+  aligned readers: 6.773619s, 15117.473 mb/s (0.0% metadata time)
+  all ranks read: 45.148581s, 2268.067 mb/s (0.0% metadata time)
+  single reader: 46.573831s, 2198.660 mb/s (0.0% metadata time)
+Test 2
+  aligned readers: 4.377921s, 23390.100 mb/s (0.0% metadata time)
+  all ranks read: 40.846675s, 2506.936 mb/s (0.0% metadata time)
+  single reader: 85.161691s, 1202.419 mb/s (0.0% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 27.505380s, 3722.908 mb/s (0.0% metadata time)
+  all ranks write: 93.815527s, 1091.504 mb/s (0.0% metadata time)
+  single write: 121.874076s, 840.212 mb/s (0.0% metadata time)
+Test 1
+  aligned writers: 18.680630s, 5481.614 mb/s (0.0% metadata time)
+  all ranks write: 76.120675s, 1345.232 mb/s (0.0% metadata time)
+  single write: 130.351411s, 785.569 mb/s (0.0% metadata time)
+Test 2
+  aligned writers: 26.495355s, 3864.828 mb/s (0.0% metadata time)
+  all ranks write: 90.178704s, 1135.523 mb/s (0.0% metadata time)
+  single write: 97.137821s, 1054.172 mb/s (0.0% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ make
+mpicxx -std=c++14 -Wall -D_GNU_SOURCE -O3 -DHAVE_LUSTRE bulk_lustre_read.cc lustre_scan_files.o lustre_wrapper.o canonical_path.o -llustreapi -o bulk_lustre_read
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=4 ibrun -n 16 ./bulk_lustre_read read $SCRATCH/read_test.size=1m.sc=1.sl=1m.count=10000
+TACC:  Starting up job 5211376 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=4 np=16 rpn=4
+[0] 0.000201 Scanning files...
+[0] 0.988971 10000 files scanned in 0.988764s
+total 10485760000 bytes, or 9.766 GB
+
+read tests
+
+Test 0
+  aligned readers: 12.969998s, 771.010 mb/s (1.4% metadata time)
+  all ranks read: 10.240064s, 976.556 mb/s (1.5% metadata time)
+Test 1
+  aligned readers: 0.281982s, 35463.318 mb/s (56.2% metadata time)
+  all ranks read: 0.246673s, 40539.497 mb/s (51.6% metadata time)
+Test 2
+  aligned readers: 0.243947s, 40992.554 mb/s (55.3% metadata time)
+  all ranks read: 0.261741s, 38205.742 mb/s (58.9% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 1.679309s, 5954.831 mb/s (16.6% metadata time)
+  all ranks write: 1.902654s, 5255.816 mb/s (13.4% metadata time)
+Test 1
+  aligned writers: 2.197877s, 4549.846 mb/s (13.9% metadata time)
+  all ranks write: 2.140200s, 4672.461 mb/s (15.1% metadata time)
+Test 2
+  aligned writers: 1.865625s, 5360.134 mb/s (13.4% metadata time)
+  all ranks write: 1.954795s, 5115.626 mb/s (16.6% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=4 ibrun -n 16 ./bulk_lustre_read read $SCRATCH/read_test.size=1g.sc=4.sl=1m.count=40
+TACC:  Starting up job 5211376 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=4 np=16 rpn=4
+[0] 0.000212 Scanning files...
+[0] 0.004806 40 files scanned in 0.004589s
+total 42949672960 bytes, or 40.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 3.600921s, 11374.868 mb/s (0.1% metadata time)
+  all ranks read: 2.767705s, 14799.264 mb/s (0.0% metadata time)
+Test 1
+  aligned readers: 2.793320s, 14663.554 mb/s (0.2% metadata time)
+  all ranks read: 0.618705s, 66202.845 mb/s (0.1% metadata time)
+Test 2
+  aligned readers: 0.539611s, 75906.520 mb/s (0.5% metadata time)
+  all ranks read: 0.534022s, 76700.968 mb/s (0.1% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 4.911744s, 8339.196 mb/s (0.1% metadata time)
+  all ranks write: 3.880036s, 10556.604 mb/s (0.0% metadata time)
+Test 1
+  aligned writers: 3.979923s, 10291.657 mb/s (0.5% metadata time)
+  all ranks write: 3.915153s, 10461.915 mb/s (0.0% metadata time)
+Test 2
+  aligned writers: 3.759336s, 10895.540 mb/s (0.4% metadata time)
+  all ranks write: 3.976713s, 10299.963 mb/s (0.0% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=4 ibrun -n 16 ./bulk_lustre_read read $SCRATCH/read_test.size=100g.sc=16.sl=16m.count=1
+TACC:  Starting up job 5211376 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=4 np=16 rpn=4
+[0] 0.000216 Scanning files...
+[0] 0.008466 1 files scanned in 0.008245s
+total 107374182400 bytes, or 100.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 13.077346s, 7830.335 mb/s (0.0% metadata time)
+  all ranks read: 60.652117s, 1688.317 mb/s (0.0% metadata time)
+Test 1
+  aligned readers: 3.517041s, 29115.388 mb/s (0.0% metadata time)
+  all ranks read: 53.470482s, 1915.075 mb/s (0.0% metadata time)
+Test 2
+  aligned readers: 3.570878s, 28676.420 mb/s (0.1% metadata time)
+  all ranks read: 43.815619s, 2337.066 mb/s (0.0% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 37.567418s, 2725.766 mb/s (0.0% metadata time)
+  all ranks write: 102.585768s, 998.189 mb/s (0.0% metadata time)
+Test 1
+  aligned writers: 36.032242s, 2841.899 mb/s (0.0% metadata time)
+  all ranks write: 103.975143s, 984.851 mb/s (0.0% metadata time)
+Test 2
+  aligned writers: 36.509458s, 2804.753 mb/s (0.0% metadata time)
+  all ranks write: 103.841656s, 986.117 mb/s (0.0% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=4 ibrun -n 64 ./bulk_lustre_read read $SCRATCH/read_test.size=1m.sc=1.sl=1m.count=10000
+TACC:  Starting up job 5211376 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=16 np=64 rpn=4
+[0] 0.000212 Scanning files...
+[0] 2.967793 10000 files scanned in 2.967577s
+total 10485760000 bytes, or 9.766 GB
+
+read tests
+
+Test 0
+  aligned readers: 3.898864s, 2564.850 mb/s (1.2% metadata time)
+  all ranks read: 1.345545s, 7431.933 mb/s (3.0% metadata time)
+Test 1
+  aligned readers: 0.114920s, 87017.156 mb/s (59.7% metadata time)
+  all ranks read: 0.089470s, 111769.367 mb/s (63.0% metadata time)
+Test 2
+  aligned readers: 0.094809s, 105475.186 mb/s (68.3% metadata time)
+  all ranks read: 0.090383s, 110640.681 mb/s (68.7% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 0.545579s, 18329.163 mb/s (18.4% metadata time)
+  all ranks write: 1.231828s, 8118.019 mb/s (4.7% metadata time)
+Test 1
+  aligned writers: 0.676779s, 14775.875 mb/s (9.5% metadata time)
+  all ranks write: 1.007593s, 9924.640 mb/s (5.8% metadata time)
+Test 2
+  aligned writers: 1.118133s, 8943.481 mb/s (7.9% metadata time)
+  all ranks write: 1.339819s, 7463.692 mb/s (8.7% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=4 ibrun -n 64 ./bulk_lustre_read read $SCRATCH/read_test.size=1g.sc=4.sl=1m.count=40
+TACC:  Starting up job 5211376 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=16 np=64 rpn=4
+[0] 0.000193 Scanning files...
+[0] 0.125896 40 files scanned in 0.125700s
+total 42949672960 bytes, or 40.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 2.070944s, 19778.424 mb/s (0.1% metadata time)
+  all ranks read: 1.905509s, 21495.570 mb/s (0.0% metadata time)
+Test 1
+  aligned readers: 0.199417s, 205398.805 mb/s (0.6% metadata time)
+  all ranks read: 0.204399s, 200391.895 mb/s (0.2% metadata time)
+Test 2
+  aligned readers: 0.173536s, 236031.751 mb/s (0.7% metadata time)
+  all ranks read: 0.167060s, 245181.376 mb/s (0.2% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 1.871328s, 21888.199 mb/s (0.1% metadata time)
+  all ranks write: 1.487377s, 27538.407 mb/s (0.0% metadata time)
+Test 1
+  aligned writers: 1.666047s, 24585.143 mb/s (0.1% metadata time)
+  all ranks write: 1.546252s, 26489.853 mb/s (0.3% metadata time)
+Test 2
+  aligned writers: 1.767373s, 23175.634 mb/s (0.3% metadata time)
+  all ranks write: 1.618231s, 25311.584 mb/s (0.3% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c203-017.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+
+
+$ IBRUN_TASKS_PER_NODE=4 ibrun -n 64 ./bulk_lustre_read read $SCRATCH/read_test.size=100g.sc=16.sl=16m.count=1
+TACC:  Starting up job 5211669 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=16 np=64 rpn=4
+[0] 0.000230 Scanning files...
+[0] 0.001500 1 files scanned in 0.001266s
+total 107374182400 bytes, or 100.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 5.379250s, 19036.112 mb/s (0.0% metadata time)
+  all ranks read: 73.288112s, 1397.225 mb/s (0.0% metadata time)
+Test 1
+  aligned readers: 3.813006s, 26855.455 mb/s (0.0% metadata time)
+  all ranks read: 49.982091s, 2048.734 mb/s (0.0% metadata time)
+Test 2
+  aligned readers: 2.026744s, 50524.379 mb/s (0.0% metadata time)
+  all ranks read: 63.431858s, 1614.331 mb/s (0.0% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 18.556700s, 5518.222 mb/s (0.0% metadata time)
+  all ranks write: 106.399457s, 962.411 mb/s (0.0% metadata time)
+Test 1
+  aligned writers: 17.986215s, 5693.249 mb/s (0.0% metadata time)
+  all ranks write: 108.043764s, 947.764 mb/s (0.1% metadata time)
+Test 2
+  aligned writers: 18.724093s, 5468.890 mb/s (0.0% metadata time)
+  all ranks write: 107.494316s, 952.609 mb/s (0.0% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c202-008.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=1 ibrun -n 4 ./bulk_lustre_read read $SCRATCH/read_test.size=1m.sc=1.sl=1m.count=10000
+TACC:  Starting up job 5211669 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=4 np=4 rpn=1
+[0] 0.000078 Scanning files...
+[0] 0.832961 10000 files scanned in 0.832876s
+total 10485760000 bytes, or 9.766 GB
+
+read tests
+
+Test 0
+  aligned readers: 47.243509s, 211.669 mb/s (1.1% metadata time)
+  all ranks read: 42.581491s, 234.844 mb/s (1.1% metadata time)
+Test 1
+  aligned readers: 0.899171s, 11121.354 mb/s (45.7% metadata time)
+  all ranks read: 0.823469s, 12143.751 mb/s (48.0% metadata time)
+Test 2
+  aligned readers: 0.807478s, 12384.240 mb/s (50.3% metadata time)
+  all ranks read: 0.807257s, 12387.629 mb/s (51.4% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 5.296745s, 1887.952 mb/s (17.3% metadata time)
+  all ranks write: 5.747250s, 1739.963 mb/s (16.3% metadata time)
+Test 1
+  aligned writers: 5.350517s, 1868.978 mb/s (17.7% metadata time)
+  all ranks write: 6.492598s, 1540.215 mb/s (15.7% metadata time)
+Test 2
+  aligned writers: 5.999542s, 1666.794 mb/s (16.8% metadata time)
+  all ranks write: 5.530955s, 1808.006 mb/s (18.3% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c202-008.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=1 ibrun -n 16 ./bulk_lustre_read read $SCRATCH/read_test.size=1m.sc=1.sl=1m.count=10000
+TACC:  Starting up job 5211669 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=16 np=16 rpn=1
+[0] 0.000077 Scanning files...
+[0] 2.350344 10000 files scanned in 2.350261s
+total 10485760000 bytes, or 9.766 GB
+
+read tests
+
+Test 0
+  aligned readers: 4.574042s, 2186.250 mb/s (6.4% metadata time)
+  all ranks read: 1.542595s, 6482.583 mb/s (8.8% metadata time)
+Test 1
+  aligned readers: 0.323250s, 30935.783 mb/s (46.8% metadata time)
+  all ranks read: 0.229355s, 43600.476 mb/s (49.1% metadata time)
+Test 2
+  aligned readers: 0.228442s, 43774.849 mb/s (52.1% metadata time)
+  all ranks read: 0.216602s, 46167.540 mb/s (52.1% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 1.152702s, 8675.273 mb/s (17.3% metadata time)
+  all ranks write: 4.052928s, 2467.352 mb/s (5.8% metadata time)
+Test 1
+  aligned writers: 1.755312s, 5696.994 mb/s (14.8% metadata time)
+  all ranks write: 2.948965s, 3391.020 mb/s (6.8% metadata time)
+Test 2
+  aligned writers: 2.050869s, 4875.983 mb/s (11.1% metadata time)
+  all ranks write: 2.740608s, 3648.825 mb/s (7.5% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c202-008.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=1 ibrun -n 4 ./bulk_lustre_read read $SCRATCH/read_test.size=1g.sc=4.sl=1m.count=40
+TACC:  Starting up job 5211669 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=4 np=4 rpn=1
+[0] 0.000081 Scanning files...
+[0] 0.039348 40 files scanned in 0.039261s
+total 42949672960 bytes, or 40.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 10.026392s, 4085.218 mb/s (0.1% metadata time)
+  all ranks read: 7.289851s, 5618.770 mb/s (0.0% metadata time)
+Test 1
+  aligned readers: 1.958343s, 20915.644 mb/s (0.4% metadata time)
+  all ranks read: 1.682902s, 24338.912 mb/s (1.3% metadata time)
+Test 2
+  aligned readers: 1.757319s, 23308.230 mb/s (0.5% metadata time)
+  all ranks read: 1.506753s, 27184.283 mb/s (0.1% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 12.435462s, 3293.806 mb/s (0.2% metadata time)
+  all ranks write: 9.449046s, 4334.829 mb/s (0.0% metadata time)
+Test 1
+  aligned writers: 9.917148s, 4130.220 mb/s (0.2% metadata time)
+  all ranks write: 9.626111s, 4255.093 mb/s (0.0% metadata time)
+Test 2
+  aligned writers: 10.188002s, 4020.416 mb/s (0.1% metadata time)
+  all ranks write: 9.588585s, 4271.746 mb/s (0.0% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c202-008.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=1 ibrun -n 16 ./bulk_lustre_read read $SCRATCH/read_test.size=1g.sc=4.sl=1m.count=40
+TACC:  Starting up job 5211669 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=16 np=16 rpn=1
+[0] 0.000091 Scanning files...
+[0] 0.021850 40 files scanned in 0.021754s
+total 42949672960 bytes, or 40.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 14.087794s, 2907.481 mb/s (0.1% metadata time)
+  all ranks read: 2.615441s, 15660.836 mb/s (0.0% metadata time)
+Test 1
+  aligned readers: 0.758506s, 54000.876 mb/s (0.4% metadata time)
+  all ranks read: 0.520792s, 78649.483 mb/s (0.1% metadata time)
+Test 2
+  aligned readers: 0.691286s, 59251.855 mb/s (0.4% metadata time)
+  all ranks read: 0.466618s, 87780.674 mb/s (0.1% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 4.102094s, 9985.145 mb/s (0.1% metadata time)
+  all ranks write: 3.291018s, 12445.998 mb/s (0.0% metadata time)
+Test 1
+  aligned writers: 3.629712s, 11284.641 mb/s (0.1% metadata time)
+  all ranks write: 3.237695s, 12650.976 mb/s (0.0% metadata time)
+Test 2
+  aligned writers: 3.799416s, 10780.605 mb/s (0.4% metadata time)
+  all ranks write: 3.287418s, 12459.625 mb/s (0.1% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c202-008.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=1 ibrun -n 4 ./bulk_lustre_read read $SCRATCH/read_test.size=100g.sc=16.sl=16m.count=1
+TACC:  Starting up job 5211669 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=4 np=4 rpn=1
+[0] 0.000083 Scanning files...
+[0] 0.002252 1 files scanned in 0.002164s
+total 107374182400 bytes, or 100.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 22.369587s, 4577.644 mb/s (0.0% metadata time)
+  all ranks read: 59.186370s, 1730.128 mb/s (0.0% metadata time)
+Test 1
+  aligned readers: 7.631853s, 13417.450 mb/s (0.0% metadata time)
+  all ranks read: 68.874087s, 1486.771 mb/s (0.0% metadata time)
+Test 2
+  aligned readers: 10.145214s, 10093.429 mb/s (0.0% metadata time)
+  all ranks read: 59.657797s, 1716.456 mb/s (0.0% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 35.102354s, 2917.183 mb/s (0.0% metadata time)
+  all ranks write: 99.143341s, 1032.848 mb/s (0.0% metadata time)
+Test 1
+  aligned writers: 33.004730s, 3102.586 mb/s (0.0% metadata time)
+  all ranks write: 100.751253s, 1016.365 mb/s (0.0% metadata time)
+Test 2
+  aligned writers: 32.310461s, 3169.252 mb/s (0.0% metadata time)
+  all ranks write: 110.618983s, 925.700 mb/s (0.0% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c202-008.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=1 ibrun -n 16 ./bulk_lustre_read read $SCRATCH/read_test.size=100g.sc=16.sl=16m.count=1
+TACC:  Starting up job 5211669 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=16 np=16 rpn=1
+[0] 0.000088 Scanning files...
+[0] 0.001173 1 files scanned in 0.001080s
+total 107374182400 bytes, or 100.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 7.679510s, 13334.183 mb/s (0.0% metadata time)
+  all ranks read: 78.945862s, 1297.091 mb/s (0.0% metadata time)
+Test 1
+  aligned readers: 1.916445s, 53432.267 mb/s (0.0% metadata time)
+  all ranks read: 62.200816s, 1646.281 mb/s (0.0% metadata time)
+Test 2
+  aligned readers: 3.615351s, 28323.669 mb/s (0.0% metadata time)
+  all ranks read: 39.218990s, 2610.980 mb/s (0.0% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 19.142832s, 5349.261 mb/s (0.0% metadata time)
+  all ranks write: 105.114296s, 974.178 mb/s (0.0% metadata time)
+Test 1
+  aligned writers: 18.713231s, 5472.064 mb/s (0.0% metadata time)
+  all ranks write: 119.430894s, 857.400 mb/s (0.0% metadata time)
+Test 2
+  aligned writers: 5.663136s, 18081.854 mb/s (0.0% metadata time)
+  all ranks write: 116.470711s, 879.191 mb/s (0.0% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c202-008.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=48 ibrun -n $((4 * 48)) ./bulk_lustre_read read $SCRATCH/read_test.size=1m.sc=1.sl=1m.count=10000
+TACC:  Starting up job 5211669 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=4 np=192 rpn=48
+[0] 0.001966 Scanning files...
+[0] 1.124641 10000 files scanned in 1.122668s
+total 10485760000 bytes, or 9.766 GB
+
+read tests
+
+Test 0
+  aligned readers: 1.731189s, 5776.378 mb/s (0.8% metadata time)
+  all ranks read: 0.426692s, 23436.114 mb/s (6.0% metadata time)
+Test 1
+  aligned readers: 0.116080s, 86147.345 mb/s (89.1% metadata time)
+  all ranks read: 0.112675s, 88751.152 mb/s (88.7% metadata time)
+Test 2
+  aligned readers: 0.108559s, 92115.435 mb/s (90.5% metadata time)
+  all ranks read: 0.107920s, 92660.921 mb/s (90.1% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 0.624721s, 16007.157 mb/s (9.7% metadata time)
+  all ranks write: 0.870322s, 11489.999 mb/s (3.0% metadata time)
+Test 1
+  aligned writers: 0.877268s, 11399.027 mb/s (7.2% metadata time)
+  all ranks write: 0.895031s, 11172.794 mb/s (4.3% metadata time)
+Test 2
+  aligned writers: 0.575670s, 17371.054 mb/s (4.2% metadata time)
+  all ranks write: 0.635582s, 15733.607 mb/s (5.0% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c202-008.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=48 ibrun -n $((16 * 48)) ./bulk_lustre_read read $SCRATCH/read_test.size=1m.sc=1.sl=1m.count=10000
+TACC:  Starting up job 5211669 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=16 np=768 rpn=48
+[0] 0.002058 Scanning files...
+[0] 2.789815 10000 files scanned in 2.787750s
+total 10485760000 bytes, or 9.766 GB
+
+read tests
+
+Test 0
+  aligned readers: 0.479985s, 20833.964 mb/s (1.9% metadata time)
+  all ranks read: 0.260046s, 38454.760 mb/s (6.7% metadata time)
+Test 1
+  aligned readers: 0.085386s, 117114.851 mb/s (95.3% metadata time)
+  all ranks read: 0.089314s, 111964.162 mb/s (96.5% metadata time)
+Test 2
+  aligned readers: 0.076900s, 130038.741 mb/s (96.5% metadata time)
+  all ranks read: 0.083975s, 119083.589 mb/s (96.8% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 0.177953s, 56194.738 mb/s (11.2% metadata time)
+  all ranks write: 1.129736s, 8851.629 mb/s (1.9% metadata time)
+Test 1
+  aligned writers: 0.643497s, 15540.097 mb/s (2.4% metadata time)
+  all ranks write: 0.920532s, 10863.278 mb/s (1.0% metadata time)
+Test 2
+  aligned writers: 0.665675s, 15022.347 mb/s (1.5% metadata time)
+  all ranks write: 0.786876s, 12708.477 mb/s (3.0% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c202-008.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=48 ibrun -n $((4 * 48)) ./bulk_lustre_read read $SCRATCH/read_test.size=1g.sc=4.sl=1m.count=40
+TACC:  Starting up job 5211669 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=4 np=192 rpn=48
+[0] 0.001822 Scanning files...
+[0] 0.023034 40 files scanned in 0.021205s
+total 42949672960 bytes, or 40.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 1.907917s, 21468.435 mb/s (0.1% metadata time)
+  all ranks read: 2.821545s, 14516.869 mb/s (0.0% metadata time)
+Test 1
+  aligned readers: 0.123668s, 331208.834 mb/s (0.6% metadata time)
+  all ranks read: 0.393535s, 104082.150 mb/s (0.2% metadata time)
+Test 2
+  aligned readers: 0.091570s, 447310.191 mb/s (1.4% metadata time)
+  all ranks read: 0.298522s, 137209.112 mb/s (0.2% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 4.773048s, 8581.519 mb/s (5.9% metadata time)
+  all ranks write: 3.984587s, 10279.610 mb/s (0.1% metadata time)
+Test 1
+  aligned writers: 3.823530s, 10712.614 mb/s (1.5% metadata time)
+  all ranks write: 4.001858s, 10235.245 mb/s (0.0% metadata time)
+Test 2
+  aligned writers: 3.342010s, 12256.096 mb/s (4.6% metadata time)
+  all ranks write: 5.063310s, 8089.570 mb/s (19.4% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c202-008.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=48 ibrun -n $((16 * 48)) ./bulk_lustre_read read $SCRATCH/read_test.size=1g.sc=4.sl=1m.count=40
+TACC:  Starting up job 5211669 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=16 np=768 rpn=48
+[0] 0.001881 Scanning files...
+[0] 0.006140 40 files scanned in 0.004253s
+total 42949672960 bytes, or 40.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 4.072880s, 10056.765 mb/s (0.1% metadata time)
+  all ranks read: 4.462730s, 9178.238 mb/s (0.2% metadata time)
+Test 1
+  aligned readers: 0.073831s, 554776.956 mb/s (0.8% metadata time)
+  all ranks read: 0.494630s, 82809.364 mb/s (0.1% metadata time)
+Test 2
+  aligned readers: 0.059473s, 688711.151 mb/s (1.5% metadata time)
+  all ranks read: 0.300016s, 136526.204 mb/s (0.2% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 3.873143s, 10575.391 mb/s (0.1% metadata time)
+  all ranks write: 3.930922s, 10419.948 mb/s (0.0% metadata time)
+Test 1
+  aligned writers: 3.963608s, 10334.018 mb/s (0.4% metadata time)
+  all ranks write: 4.817921s, 8501.592 mb/s (17.6% metadata time)
+Test 2
+  aligned writers: 3.996305s, 10249.467 mb/s (0.7% metadata time)
+  all ranks write: 4.965388s, 8249.103 mb/s (19.5% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c202-008.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ IBRUN_TASKS_PER_NODE=48 ibrun -n $((4 * 48)) ./bulk_lustre_read read $SCRATCH/read_test.size=100g.sc=16.sl=16m.count=1
+TACC:  Starting up job 5211669 
+TACC:  Starting parallel tasks... 
+bulk_lustre_read nodes=4 np=192 rpn=48
+[0] 0.001775 Scanning files...
+[0] 0.002968 1 files scanned in 0.001186s
+total 107374182400 bytes, or 100.000 GB
+
+read tests
+
+Test 0
+  aligned readers: 7.681442s, 13330.831 mb/s (0.0% metadata time)
+  all ranks read: 58.220671s, 1758.825 mb/s (0.0% metadata time)
+Test 1
+  aligned readers: 7.132873s, 14356.066 mb/s (0.0% metadata time)
+  all ranks read: 45.994603s, 2226.348 mb/s (0.0% metadata time)
+Test 2
+  aligned readers: 2.604923s, 39310.177 mb/s (0.0% metadata time)
+  all ranks read: 51.202107s, 1999.918 mb/s (0.0% metadata time)
+
+
+write tests
+
+Test 0
+  aligned writers: 26.042614s, 3932.017 mb/s (0.0% metadata time)
+  all ranks write: 100.876629s, 1015.101 mb/s (0.0% metadata time)
+Test 1
+  aligned writers: 26.788894s, 3822.479 mb/s (0.0% metadata time)
+  all ranks write: 101.227702s, 1011.581 mb/s (0.0% metadata time)
+Test 2
+  aligned writers: 25.608556s, 3998.664 mb/s (0.0% metadata time)
+  all ranks write: 100.445072s, 1019.463 mb/s (0.0% metadata time)
+TACC:  Shutdown complete. Exiting. 
+[c202-008.frontera.tacc.utexas.edu:~/bbThemis/LustreBulk]
+$ 

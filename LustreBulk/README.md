@@ -93,3 +93,13 @@ I'm pretty sure the measured throughput exceeds the capability of the interconne
 - Add write mode. This should benefit from the reduced contention of aligned accesses. This will also require some experimentation on choosing good striping parameters as a function of the file size. Are there different optimal values for reading and writing?
 - Test on Frontera $SCRATCH
 - Try out these strategies on a BeeGFS file system
+
+
+# Write mode
+
+I ran a series of tests on Frontera and its $SCRATCH file system on a bunch of small files and a few large files.
+With large files, aligned accesses consistently performed better than single-process or all-ranks methods.
+With many small files, aligned access and all-ranks performed much better than single process for the first pass,
+but after that all the data appeared to be cached, and performance was very high for all methods.
+
+The output from the tests runs are in the file `bulk_lustre_read.2023-02-10.results`
