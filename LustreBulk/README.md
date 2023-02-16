@@ -103,3 +103,25 @@ With many small files, aligned access and all-ranks performed much better than s
 but after that all the data appeared to be cached, and performance was very high for all methods.
 
 The output from the tests runs are in the file `bulk_lustre_read.2023-02-10.results`
+
+## Many files - 10000 files, each 1 MB, stripe count 1
+
+Each test was run three times on 16 nodes with 4 processes per node.
+The results below are the fastest of the three runs.
+
+```
+                       Throughput in MB/s
+  Single writer           1310
+  All ranks writing       9925
+  Aligned writes         18329
+```
+
+## One 100 GB file, stripe count 16
+
+```
+                       Throughput in MB/s
+  Single writer           1054
+  All ranks writing        962
+  Aligned writes          5693
+```
+
