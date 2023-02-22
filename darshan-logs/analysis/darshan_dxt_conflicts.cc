@@ -79,6 +79,7 @@ void processEventSequences(FileTableType &file_table,
                            bool output_per_rank_summary);
 void scanForConflicts(File *f, int verbose);
 void outputConflictDetails(File *f, int64_t offset, int64_t offset_end);
+void outputAccessBytes(File *f);
 void testEventSequence();
 
 
@@ -143,9 +144,17 @@ int main(int argc, const char **argv) {
   }
   sort(files_by_name.begin(), files_by_name.end(),
        [](File *a, File *b) {return a->name < b->name;});
+
+  // print header row
+  if (opt.rw_bytes_output)
+    cout << "bytes_read\tbytes_written\tfilename" << std::endl;
   
   for (File *f : files_by_name) {
-    scanForConflicts(f, opt.verbose);
+    if (opt.rw_bytes_output) {
+      outputAccessBytes(f);
+    } else {
+      scanForConflicts(f, opt.verbose);
+    }
   }
 
   for (auto const &t : opt.target_files) {
@@ -175,6 +184,9 @@ void printHelp() {
     "    1: output one line per file, including files with no conflicts\n"
     "    2: for each conflicted file, output the conflicted byte ranges\n"
     "    3: for each conflicted file, output the details of each IO access\n"
+    "  -rw : Skip the normal conflict analysis; just output the number of bytes\n"
+    "        read from and written to each file. Repeated accesses of the same\n"
+    "        subrange are ignored.\n"
     "  -file=<filename> : focus only on accesses of this file (or multiple files if\n"
     "    multiple -file= options are specified). The full pathname, as it appears\n"
     "    in the logfile, must be specified.\n"
@@ -625,7 +637,7 @@ bool referenceFile(TargetFiles &target_files, const string &filename) {
 }
   
 
-
+/* Formats a set of integers as a comma-separated string. */
 string intSetToString(set<int> &s) {
   std::ostringstream buf;
   bool first = true;
@@ -755,6 +767,29 @@ void outputConflictDetails(File *f, int64_t offset, int64_t offset_end) {
          << " (conflict overlap " << overlap_len << " bytes)\n";
   }
 }
+
+
+void outputAccessBytes(File *f) {
+  if (f->name == "<STDERR>" || f->name == "<STDOUT>") {
+    // cout << "  ignored\n";
+    return;
+  }
+
+  int64_t bytes_read = 0, bytes_written = 0;
+
+  RangeMerge range_merge(f->rank_seq);
+
+  while (range_merge.next()) {
+    const RangeMerge::ActiveSet &active_set = range_merge.getActiveSet();
+    if (active_set.empty()) continue;
+
+    int64_t length = range_merge.getRangeEnd() - range_merge.getRangeStart();
+    if (range_merge.anyReaders()) bytes_read += length;
+    if (range_merge.anyWriters()) bytes_written += length;
+  }
+
+  cout << bytes_read << "\t" << bytes_written << "\t" << f->name << endl;
+}
     
 
 bool Options::parseArgs(int argc, const char **argv) {
@@ -765,6 +800,9 @@ bool Options::parseArgs(int argc, const char **argv) {
     const char *arg = argv[argno];
     if (!strcmp(arg, "-summary")) {
       output_per_rank_summary = true;
+      argno++;
+    } else if (!strcmp(arg, "-rw")) {
+      rw_bytes_output = true;
       argno++;
     } else if (!strncmp(arg, "-file=", 6)) {
       std::string filename = arg+6;
