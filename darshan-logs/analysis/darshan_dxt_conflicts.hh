@@ -20,14 +20,27 @@
 #include <unordered_map>
 #include <vector>
 
-using TargetFiles = std::map<std::string, int>;
 
 // split a line by tab characters
 void splitTabString(std::vector<std::string> &fields, const std::string &line);
 
-// Check if a file is on the target list. Returns true if the list is empty (which targets
-// all files) or it is on the list. Also, if it is on the list, mark it as having been
-// accessed. 
+
+/* Maps a filename to a flag.
+
+   This is used to implement the "-file=..." option, which tells the program to ignore
+   all but a given set of files referenced in the input file.
+
+   If this map is empty, then all files are processed.
+   Otherwise, a file should be processed iff there is an entry for it in this map.
+   The flag to which each filename maps is initially zero.
+   When a reference to the filename is found in the input data the flag is set to 1.
+   At the end of the run, any filename with a flag value of 0 is output as a warning
+   to the user that a file they requested may have been mistyped. */
+using TargetFiles = std::map<std::string, int>;
+
+/* Call this when <filename> is accessed. This will return false if the file is to be ignored.
+   Also, has the side effect of marking each file when it has been accessed at least once so
+   we can warn a user about targeted files that were never accessed. */
 bool referenceFile(TargetFiles &target_files, const std::string &filename);
 
 
@@ -50,6 +63,8 @@ struct Options {
 
   // levels 0..3 described in printHelp()
   int verbose;
+
+  bool rw_bytes_output;
   
   std::vector<std::string> input_files;
 
@@ -61,7 +76,8 @@ struct Options {
 
   Options() :
     output_per_rank_summary(false),
-    verbose(1)
+    verbose(1),
+    rw_bytes_output(false)
   {}
 
   // return false on error
@@ -257,6 +273,7 @@ public:
 } events_order_by_start_time;
 
 
+/* Represents the access mode(s) (read, write, or read/write) of a subrange of a file. */
 struct SeqEvent {
   int64_t offset, length;
   Event::Mode mode;
@@ -377,6 +394,31 @@ public:
     }
     return access_mode;
   }
+
+  // sum of the lengths of the subranges read
+  int64_t bytesRead() {
+    int64_t bytes_read = 0;
+    for (const auto &entry : elist) {
+      const SeqEvent &se = entry.second;
+      if (se.mode == Event::Mode::READ || se.mode == Event::Mode::READ_WRITE) {
+        bytes_read += se.length;
+      }
+    }
+    return bytes_read;
+  }
+
+  // sum of the lengths of the subranges written
+  int64_t bytesWritten() {
+    int64_t bytes_written = 0;
+    for (const auto &entry : elist) {
+      const SeqEvent &se = entry.second;
+      if (se.mode == Event::Mode::WRITE || se.mode == Event::Mode::READ_WRITE) {
+        bytes_written += se.length;
+      }
+    }
+    return bytes_written;
+  }
+    
 
 private:
   std::string name;
@@ -540,9 +582,6 @@ public:
 };
 
 
-
-
-
 /* Merge a set of sequences of ranges into a sequence of subranges where the 
    set of active ranks and their mode (read, write, or read/write) is constant.
    For example, with the following set of sequences:
@@ -586,6 +625,18 @@ public:
   int64_t getRangeStart() {return range_start;}
   int64_t getRangeEnd() {return range_end;}
   const ActiveSet& getActiveSet() {return active_set;}
+
+  bool anyReaders() {
+    for (const auto &e : active_set)
+      if (e.second == Event::READ || e.second == Event::READ_WRITE) return true;
+    return false;
+  }
+
+  bool anyWriters() {
+    for (const auto &e : active_set)
+      if (e.second == Event::WRITE || e.second == Event::READ_WRITE) return true;
+    return false;
+  }
 };
 
 
