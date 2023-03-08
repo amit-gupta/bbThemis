@@ -1,6 +1,6 @@
 default: all
 
-EXECS = test_lustre_scan_files bulk_lustre_read
+EXECS = test_lustre_scan_files bulk_lustre_read create_many
 
 all: $(EXECS)
 
@@ -28,6 +28,9 @@ bulk_lustre_read: bulk_lustre_read.cc lustre_scan_files.o \
 
 test_lustre_scan_files: test_lustre_scan_files.cc lustre_scan_files.o \
   lustre_wrapper.o canonical_path.o
+	$(CXX) $^ $(LUSTRE_LIB) -o $@
+
+create_many: create_many.cc lustre_wrapper.o
 	$(CXX) $^ $(LUSTRE_LIB) -o $@
 
 lustre_wrapper.o: lustre_wrapper.c lustre_wrapper.h

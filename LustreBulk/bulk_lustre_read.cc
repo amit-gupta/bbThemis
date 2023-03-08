@@ -436,7 +436,7 @@ long writeFile(const char *filename, const long size,
 // returns total bytes read
 long singleReader(const FileSet &all_files, double &metadata_sec, double &read_sec) {
   long total_bytes_read = 0;
-  int count = 0;
+  // int count = 0;
   metadata_sec = 0;
   read_sec = 0;
   
@@ -559,7 +559,7 @@ long alignedRead(const vector<StridedContent> &content_list, double &meta_sec, d
 // returns total bytes written
 long singleWriter(const FileSet &all_files, double &metadata_sec, double &write_sec) {
   long total_bytes_written = 0;
-  int count = 0;
+  // int count = 0;
   metadata_sec = 0;
   write_sec = 0;
   
@@ -862,7 +862,7 @@ int main(int argc, char **argv) {
     MPI_Barrier(comm);
     timer_aligned = MPI_Wtime() - timer_aligned;
     if (rank==0) {
-      if (bytes_written != total_bytes) {
+      if (bytes_written != (long)total_bytes) {
         printf("[%d] ERROR alignedWrite wrote %ld of %ld bytes\n", rank, bytes_written, (long)total_bytes);
       }
       printf("  aligned writers: %.6fs, %.3f mb/s (%.1f%% metadata time)\n", timer_aligned, total_mb / timer_aligned,
@@ -876,7 +876,7 @@ int main(int argc, char **argv) {
     MPI_Barrier(comm);
     timer_all = MPI_Wtime() - timer_all;
     if (rank==0) {
-      if (bytes_written != total_bytes) {
+      if (bytes_written != (long)total_bytes) {
         printf("[%d] ERROR allRanksWrite wrote %ld of %ld bytes\n", rank, bytes_written, (long)total_bytes);
       }
       printf("  all ranks write: %.6fs, %.3f mb/s (%.1f%% metadata time)\n", timer_all, total_mb / timer_all,
@@ -888,7 +888,7 @@ int main(int argc, char **argv) {
       if (rank == 0) {
         timer_single = MPI_Wtime();
         bytes_written = singleWriter(all_files, meta_sec, data_sec);
-        if (bytes_written != total_bytes) {
+        if (bytes_written != (long)total_bytes) {
           printf("[%d] ERROR singleWriter wrote %ld of %ld bytes\n", rank, bytes_written, (long)total_bytes);
         }
         timer_single = MPI_Wtime() - timer_single;
