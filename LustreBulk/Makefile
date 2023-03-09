@@ -1,6 +1,6 @@
 default: all
 
-EXECS = test_lustre_scan_files bulk_lustre_read create_many
+EXECS = test_lustre_scan_files bulk_lustre_read create_many job_cache_example
 
 all: $(EXECS)
 
@@ -32,6 +32,9 @@ test_lustre_scan_files: test_lustre_scan_files.cc lustre_scan_files.o \
 
 create_many: create_many.cc lustre_wrapper.o
 	$(CXX) $^ $(LUSTRE_LIB) -o $@
+
+job_cache_example: job_cache_example.cc
+	$(MPICXX) $^ -o $@
 
 lustre_wrapper.o: lustre_wrapper.c lustre_wrapper.h
 	$(CC) -c $<
