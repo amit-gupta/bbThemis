@@ -1,5 +1,7 @@
 *~
 *.o
 *.exe
-test_lustre_scan_files
 bulk_lustre_read
+create_many
+job_cache_example
+test_lustre_scan_files
