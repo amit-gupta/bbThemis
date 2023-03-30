@@ -39,13 +39,12 @@
 #include <unistd.h>
 #include <vector>
 #include "lustre_scan_files.hh"
-#include "page_cache.h"
+
 
 using std::vector;
 using std::string;
 using std::map;
 
-PageCache page_cache(PageCache::ConsistencyLevel::VISIBLE_AFTER_WRITE);
 
 int np, rank, node_count, node_idx, node_size, rank_on_node;
 double t0;
@@ -67,7 +66,7 @@ struct Options {
   Options() : 
     test_count(3),
     direction(Direction::READ),
-    enable_single_rank_test(true) {}
+    enable_single_rank_test(false) {}
 
   bool parseArgs(int argc, char **argv);
 };
@@ -371,7 +370,7 @@ uint64_t readFile(const char *filename, double &metadata_sec, double &read_sec) 
   double timer;
   
   timer = MPI_Wtime();
-  int fd = page_cache.open(filename, O_RDONLY);
+  int fd = open(filename, O_RDONLY);
   metadata_sec += MPI_Wtime() - timer;
   if (fd < 0) {
     fprintf(stderr, "[%d] failed to open %s for reading\n", rank, filename);
@@ -380,14 +379,14 @@ uint64_t readFile(const char *filename, double &metadata_sec, double &read_sec) 
 
   timer = MPI_Wtime();
   while (true) {
-      ssize_t bytes_read = page_cache.read(fd, buffer, BUFFER_SIZE);
+    ssize_t bytes_read = read(fd, buffer, BUFFER_SIZE);
     if (bytes_read <= 0) break;
     file_size += bytes_read;
   }
   read_sec += MPI_Wtime() - timer;
 
   timer = MPI_Wtime();
-  page_cache.close(fd);
+  close(fd);
   metadata_sec += MPI_Wtime() - timer;
 
   return file_size;
@@ -406,7 +405,7 @@ long writeFile(const char *filename, const long size,
   double timer;
   
   timer = MPI_Wtime();
-  int fd = page_cache.open(filename, O_CREAT | O_WRONLY);
+  int fd = open(filename, O_CREAT | O_WRONLY);
   metadata_sec += MPI_Wtime() - timer;
   if (fd < 0) {
     fprintf(stderr, "[%d] failed to open %s for writing\n", rank, filename);
@@ -417,7 +416,7 @@ long writeFile(const char *filename, const long size,
   timer = MPI_Wtime();
   while (total_bytes_written < size) {
     int write_len = std::min(size - total_bytes_written, (long)BUFFER_SIZE);
-    ssize_t bytes_written = page_cache.write(fd, buffer, write_len);
+    ssize_t bytes_written = write(fd, buffer, write_len);
     if (bytes_written < 0) {
       fprintf(stderr, "[%d] error %d writing to %s: %s\n", rank, errno, filename, strerror(errno));
       return total_bytes_written;
@@ -427,7 +426,7 @@ long writeFile(const char *filename, const long size,
   write_sec += MPI_Wtime() - timer;
 
   timer = MPI_Wtime();
-  page_cache.close(fd);
+  close(fd);
   metadata_sec += MPI_Wtime() - timer;
 
   return total_bytes_written;
@@ -514,7 +513,7 @@ long alignedRead(const vector<StridedContent> &content_list, double &meta_sec, d
   for (const StridedContent &sc : content_list) {
     const char *filename = sc.file_name.c_str();
     timer = MPI_Wtime();
-    int fd = page_cache.open(filename, O_RDONLY);
+    int fd = open(filename, O_RDONLY);
     meta_sec += MPI_Wtime() - timer;
     if (fd < 0) {
       fprintf(stderr, "[%d] failed to open %s for reading\n", rank, filename);
@@ -526,7 +525,7 @@ long alignedRead(const vector<StridedContent> &content_list, double &meta_sec, d
     uint64_t pos = sc.offset;
     while (pos < sc.file_size) {
       int read_len = std::min(sc.length, sc.file_size - pos);
-      ssize_t bytes_read = page_cache.pread(fd, buf.data(), read_len, pos);
+      ssize_t bytes_read = pread(fd, buf.data(), read_len, pos);
       if (bytes_read != read_len) {
         fprintf(stderr, "[%d] short read %ld of %ld bytes from %s at %ld\n",
                 rank, (long)bytes_read, (long)read_len, filename, (long)pos);
@@ -538,7 +537,7 @@ long alignedRead(const vector<StridedContent> &content_list, double &meta_sec, d
     data_sec += MPI_Wtime() - timer;
 
     timer = MPI_Wtime();
-    page_cache.close(fd);
+    close(fd);
     meta_sec += MPI_Wtime() - timer;
   }
   
@@ -631,7 +630,7 @@ long alignedWrite(const vector<StridedContent> &content_list, double &meta_sec, 
   for (const StridedContent &sc : content_list) {
     const char *filename = sc.file_name.c_str();
     timer = MPI_Wtime();
-    int fd = page_cache.open(filename, O_CREAT | O_WRONLY);
+    int fd = open(filename, O_CREAT | O_WRONLY);
     meta_sec += MPI_Wtime() - timer;
     if (fd < 0) {
       fprintf(stderr, "[%d] failed to open %s for reading\n", rank, filename);
@@ -643,7 +642,7 @@ long alignedWrite(const vector<StridedContent> &content_list, double &meta_sec, 
     timer = MPI_Wtime();
     while (pos < sc.file_size) {
       int write_len = std::min(sc.length, sc.file_size - pos);
-      ssize_t bytes_written = page_cache.pwrite(fd, buf.data(), write_len, pos);
+      ssize_t bytes_written = pwrite(fd, buf.data(), write_len, pos);
       if (bytes_written < 0) {
         fprintf(stderr, "[%d] error %d writing to %s at %ld: %s\n", rank, errno, filename, (long)pos, strerror(errno));
         break;
@@ -654,7 +653,7 @@ long alignedWrite(const vector<StridedContent> &content_list, double &meta_sec, 
     data_sec += MPI_Wtime() - timer;
 
     timer = MPI_Wtime();
-    page_cache.close(fd);
+    close(fd);
     meta_sec += MPI_Wtime() - timer;
   }
   
@@ -850,7 +849,6 @@ int main(int argc, char **argv) {
 
   // write
   if (rank==0) printf("\n\nwrite tests\n\n");
-
   for (int i=0; i < opt.test_count; i++) {
     double timer_single, timer_all, timer_aligned;
     long bytes_written;
@@ -900,7 +898,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  page_cache.exit();  
+  
 
   MPI_Finalize();
   return 0;

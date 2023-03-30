@@ -14,7 +14,7 @@ endif
 
 
 # OPT = -g
-OPT = -O3
+OPT = -O0
 CFLAGS = -Wall -D_GNU_SOURCE $(OPT) $(LUSTRE_FLAG)
 CC = gcc $(CFLAGS)
 CXX = g++ -std=c++14 $(CFLAGS)
@@ -22,7 +22,7 @@ MPICC = mpicc $(CFLAGS)
 MPICXX = mpicxx -std=c++14 $(CFLAGS)
 
 
-bulk_lustre_read: bulk_lustre_read.cc lustre_scan_files.o \
+bulk_lustre_read: bulk_lustre_read.cc page_cache.o lustre_scan_files.o \
   lustre_wrapper.o canonical_path.o
 	$(MPICXX) $^ $(LUSTRE_LIB) -o $@
 
@@ -44,6 +44,12 @@ lustre_scan_files.o: lustre_scan_files.cc lustre_scan_files.hh
 
 canonical_path.o: canonical_path.cc canonical_path.hh
 	$(CXX) -c $<
+
+page_cache.o: page_cache.cc page_cache.h
+	$(CXX) -c $<
+
+test_page_cache: test_page_cache.cc page_cache.o
+	$(CXX) $^ -o $@
 
 clean:
 	rm -f $(EXECS) *.exe *.o *.stackdump *~
