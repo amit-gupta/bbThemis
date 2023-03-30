@@ -41,9 +41,9 @@
 
 		- Application experiments with FIFO and size-fair
 			- launch a 4 nvdimm node server
-			- launch a benchmark application on 8 compute nodes
+			- launch a benchmark application on 8 compute nodes (to mimic the background workload on frontera scratch)
 			- launch a NAMD on 64 compute nodes
-			- launch a 4 RTX nodes
+			- launch a ResNet-50 on 4 RTX nodes
 
 	3.2 MPI instead of UCX
 		Ed to work on a simple test program.
