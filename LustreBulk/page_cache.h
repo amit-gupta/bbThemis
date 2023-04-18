@@ -251,6 +251,9 @@ public:
   };
   static Implementation system_implementation;
 
+  int size_of_entry_table() { return entry_table.size();}
+  int size_of_open_files_table() { return open_files_by_name.size();}
+
 
 
   

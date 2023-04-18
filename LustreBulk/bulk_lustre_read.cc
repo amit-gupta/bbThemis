@@ -378,6 +378,7 @@ uint64_t readFile(const char *filename, double &metadata_sec, double &read_sec) 
     return 0;
   }
 
+
   timer = MPI_Wtime();
   while (true) {
       ssize_t bytes_read = page_cache.read(fd, buffer, BUFFER_SIZE);
@@ -540,8 +541,12 @@ long alignedRead(const vector<StridedContent> &content_list, double &meta_sec, d
     timer = MPI_Wtime();
     page_cache.close(fd);
     meta_sec += MPI_Wtime() - timer;
+
+
   }
   
+
+
   if (rank==0) {
     MPI_Reduce(MPI_IN_PLACE, &total_bytes_read, 1, MPI_LONG, MPI_SUM, 0, comm);
     MPI_Reduce(MPI_IN_PLACE, &meta_sec, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
@@ -806,7 +811,9 @@ int main(int argc, char **argv) {
 
     // aligned read
     timer_aligned = MPI_Wtime();
+
     bytes_read = alignedRead(my_content, meta_sec, data_sec);
+
     MPI_Barrier(comm);
     timer_aligned = MPI_Wtime() - timer_aligned;
     if (rank==0) {
@@ -816,6 +823,7 @@ int main(int argc, char **argv) {
       printf("  aligned readers: %.6fs, %.3f mb/s (%.1f%% metadata time)\n", timer_aligned, total_mb / timer_aligned,
              100.0 * meta_sec / (meta_sec + data_sec));
     }
+
 
     // all ranks read, selecting their files round-robin from all_files
     MPI_Barrier(comm);
@@ -831,6 +839,7 @@ int main(int argc, char **argv) {
              100.0 * meta_sec / (meta_sec + data_sec));
     }
 
+
     // single reader
     if (opt.enable_single_rank_test) {
       if (rank == 0) {
@@ -845,6 +854,7 @@ int main(int argc, char **argv) {
                100.0 * meta_sec / (meta_sec + data_sec));
       }
     }
+
   }
 
 
@@ -898,9 +908,9 @@ int main(int argc, char **argv) {
                100.0 * meta_sec / (meta_sec + data_sec));
       }
     }
-  }
+    }
 
-  page_cache.exit();  
+//  page_cache.exit();  
 
   MPI_Finalize();
   return 0;

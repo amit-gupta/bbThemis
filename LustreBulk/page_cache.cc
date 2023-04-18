@@ -434,7 +434,8 @@ ssize_t PageCache::pwrite(FileDescriptor *filedes, const void *buf, size_t count
     if (entry_id < 0)
       break;
 
-    char *page_content = getEntryContent(entry_id);
+    char *page_content = getEntryContent
+(entry_id);
 
     memcpy(page_content + page_offset, buf_pos, copy_len);
     setEntryDirty(entry_id);
@@ -537,6 +538,8 @@ int PageCache::close(int fd) {
 
   if (!other_refs && consistency <= VISIBLE_AFTER_CLOSE) {
     impl.close(open_file->fd);
+    //flush file pages before deallocating open_file
+    flushFilePages(open_file, false);
     open_files_by_name.erase(open_file->canonical_path);
     delete open_file;
   }
@@ -864,7 +867,15 @@ bool PageCache::fsck() const {
            e.listNo() == LIST_ACTIVE);
 
     const std::string &path = key.f->canonical_path;
-    std::cout<<"canonical path: "<<key.f->canonical_path<<std::endl;
+//    std::cout<<"canonical path pagekey: "<<key.f->canonical_path<<std::endl;
+//    std::cout<<"canonical path entry: "<<e.file->canonical_path<<std::endl;
+
+/*
+    if(key.f->canonical_path != e.file->canonical_path) {
+        std::cout<<"canonical path pagekey: "<<key.f->canonical_path<<std::endl;
+        std::cout<<"canonical path entry: "<<e.file->canonical_path<<std::endl;
+    }
+*/
 
     auto of_it = open_files_by_name.find(path);
     assert(of_it != open_files_by_name.end());
